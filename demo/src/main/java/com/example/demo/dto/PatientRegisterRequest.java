@@ -1,16 +1,9 @@
-package com.example.demo.model;
-
-<<<<<<< HEAD
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+package com.example.demo.dto;
 
 import java.time.LocalDate;
 
-@Document(collection = "patients")
-public class Patient {
+public class PatientRegisterRequest {
 
-    @Id
-    private String id;
     private String title;
     private String firstName;
     private String lastName;
@@ -20,11 +13,9 @@ public class Patient {
     private String residentialAddress;
     private String email;
     private String password;
+    private String confirmPassword;
 
     // Getters and Setters
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
@@ -51,7 +42,7 @@ public class Patient {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
-=======
-public class Patient {
->>>>>>> 89e3041278f620dff59a1d43465db79ea34a6c27
+
+    public String getConfirmPassword() { return confirmPassword; }
+    public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
 }

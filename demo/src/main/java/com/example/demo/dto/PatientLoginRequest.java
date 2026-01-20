@@ -1,15 +1,14 @@
 package com.example.demo.dto;
 
-public class LoginRequest {
-<<<<<<< HEAD
-=======
+public class PatientLoginRequest {
+
     private String email;
     private String password;
 
+    // Getters and Setters
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
->>>>>>> 89e3041278f620dff59a1d43465db79ea34a6c27
 }
