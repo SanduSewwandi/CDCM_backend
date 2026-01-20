@@ -1,5 +1,6 @@
 package com.example.demo.model;
 
+<<<<<<< HEAD
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -50,4 +51,7 @@ public class Patient {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+=======
+public class Patient {
+>>>>>>> 89e3041278f620dff59a1d43465db79ea34a6c27
 }
