@@ -1,6 +1,6 @@
 package com.example.demo.controller;
 
-<<<<<<< HEAD
+
 import com.example.demo.dto.PatientLoginRequest;
 import com.example.demo.dto.PatientRegisterRequest;
 import com.example.demo.model.Patient;
@@ -40,7 +40,7 @@ public class PatientController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-=======
-public class PatientController {
->>>>>>> 89e3041278f620dff59a1d43465db79ea34a6c27
+
+
+
 }
