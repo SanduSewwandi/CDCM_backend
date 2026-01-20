@@ -1,8 +1,5 @@
 package com.example.demo.controller;
 
-<<<<<<< HEAD
-public class DoctorController {
-=======
 import com.example.demo.model.Doctor;
 import com.example.demo.service.DoctorService;
 import com.example.demo.dto.LoginRequest;
@@ -33,5 +30,5 @@ public class DoctorController {
             return new LoginResponse("Invalid Email or Password", null);
         }
     }
->>>>>>> 89e3041278f620dff59a1d43465db79ea34a6c27
+
 }

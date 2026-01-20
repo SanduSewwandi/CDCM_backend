@@ -1,6 +1,5 @@
 package com.example.demo.service;
 
-<<<<<<< HEAD
 import com.example.demo.dto.PatientRegisterRequest;
 import com.example.demo.model.Patient;
 import com.example.demo.repository.PatientRepository;
@@ -53,7 +52,5 @@ public class PatientService {
 
         return patient;
     }
-=======
-public class PatientService {
->>>>>>> 89e3041278f620dff59a1d43465db79ea34a6c27
+
 }
