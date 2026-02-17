@@ -2,17 +2,18 @@ package com.example.demo.dto;
 
 public class AdminLoginRequest {
 
-    private String username;
+    private String email;
     private String password;
 
     public AdminLoginRequest() {}
 
-    public String getUsername() {
-        return username;
+    // FIX: Renamed to match the 'email' field
+    public String getEmail() {
+        return email;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getPassword() {
