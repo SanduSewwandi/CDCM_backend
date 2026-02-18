@@ -13,6 +13,9 @@ import com.example.demo.service.PatientService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.example.demo.model.Admin;
+import com.example.demo.service.AdminService;
+
 
 @RestController
 @RequestMapping("/api/auth")
@@ -21,18 +24,22 @@ public class AuthController {
     private final PatientService patientService;
     private final DoctorService doctorService;
     private final HospitalService hospitalService;
+    private final AdminService adminService;
 
-    // Temporary admin (will replace with DB later)
-    private final String ADMIN_EMAIL = "admin@gmail.com";
-    private final String ADMIN_PASSWORD = "admin123";
+
+
 
     public AuthController(PatientService patientService,
                           DoctorService doctorService,
-                          HospitalService hospitalService) {
+                          HospitalService hospitalService,
+                          AdminService adminService) {
+
         this.patientService = patientService;
         this.doctorService = doctorService;
         this.hospitalService = hospitalService;
+        this.adminService = adminService;  // 🔥 IMPORTANT
     }
+
 
     // =========================
     // REGISTER PATIENT
@@ -59,23 +66,26 @@ public class AuthController {
     // =========================
     // LOGIN (ALL ROLES)
     // =========================
+
+
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest request) {
 
         // 1️⃣ ADMIN
-        if (ADMIN_EMAIL.equals(request.getEmail()) &&
-                ADMIN_PASSWORD.equals(request.getPassword())) {
+        Admin admin = adminService.loginAdmin(request.getEmail(), request.getPassword());
 
+        if (admin != null) {
             return ResponseEntity.ok(
                     new LoginResponse(
                             "Login Successful",
                             "ADMIN",
-                            "ADMIN-001",
-                            "Administrator"
+                            admin.getId(),
+                            admin.getName()
                     )
             );
         }
+
 
         // 2️⃣ HOSPITAL
         Hospital hospital = hospitalService
