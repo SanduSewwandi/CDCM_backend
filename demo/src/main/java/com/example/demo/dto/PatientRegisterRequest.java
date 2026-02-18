@@ -13,9 +13,8 @@ public class PatientRegisterRequest {
     private String residentialAddress;
     private String email;
     private String password;
-    private String confirmPassword;
 
-    // Getters and Setters
+    // Getters & Setters
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
@@ -42,7 +41,4 @@ public class PatientRegisterRequest {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
-
-    public String getConfirmPassword() { return confirmPassword; }
-    public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
 }

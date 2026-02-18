@@ -1,6 +1,8 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.DoctorRegisterRequest;
 import com.example.demo.dto.LoginRequest;
+import com.example.demo.dto.LoginResponse;
 import com.example.demo.dto.PatientRegisterRequest;
 import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
@@ -8,109 +10,128 @@ import com.example.demo.model.Patient;
 import com.example.demo.service.DoctorService;
 import com.example.demo.service.HospitalService;
 import com.example.demo.service.PatientService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Collections;
-
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:5173")
 public class AuthController {
 
-    @Autowired
-    private PatientService patientService;
+    private final PatientService patientService;
+    private final DoctorService doctorService;
+    private final HospitalService hospitalService;
 
-    @Autowired
-    private DoctorService doctorService;
-
-    @Autowired
-    private HospitalService hospitalService;
-
+    // Temporary admin (will replace with DB later)
     private final String ADMIN_EMAIL = "admin@gmail.com";
     private final String ADMIN_PASSWORD = "admin123";
 
-    // ... (Keep register methods the same) ...
+    public AuthController(PatientService patientService,
+                          DoctorService doctorService,
+                          HospitalService hospitalService) {
+        this.patientService = patientService;
+        this.doctorService = doctorService;
+        this.hospitalService = hospitalService;
+    }
+
+    // =========================
+    // REGISTER PATIENT
+    // =========================
     @PostMapping("/register/patient")
-    public ResponseEntity<?> registerPatient(@RequestBody PatientRegisterRequest request) {
-        try {
-            Patient patient = patientService.registerPatient(request);
-            return ResponseEntity.ok(patient);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Registration failed: " + e.getMessage()));
-        }
+    public ResponseEntity<?> registerPatient(
+            @Valid @RequestBody PatientRegisterRequest request) {
+
+        Patient patient = patientService.registerPatient(request);
+        return ResponseEntity.ok(patient);
     }
 
+    // =========================
+    // REGISTER DOCTOR
+    // =========================
     @PostMapping("/register/doctor")
-    public ResponseEntity<?> registerDoctor(@RequestBody Doctor doctor) {
-        try {
-            Doctor savedDoctor = doctorService.registerDoctor(doctor);
-            return ResponseEntity.ok(savedDoctor);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Registration failed: " + e.getMessage()));
-        }
+    public ResponseEntity<?> registerDoctor(
+            @Valid @RequestBody DoctorRegisterRequest request) {
+
+        Doctor doctor = doctorService.registerDoctor(request);
+        return ResponseEntity.ok(doctor);
     }
 
-    // UPDATED LOGIN METHOD
+    // =========================
+    // LOGIN (ALL ROLES)
+    // =========================
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request) {
 
-        // 1. Admin
-        if (ADMIN_EMAIL.equals(request.getEmail()) && ADMIN_PASSWORD.equals(request.getPassword())) {
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "Login Successful");
-            response.put("userId", "ADMIN-001");
-            response.put("role", "ADMIN");
-            response.put("name", "Administrator"); // Send Name
-            return ResponseEntity.ok(response);
+        // 1️⃣ ADMIN
+        if (ADMIN_EMAIL.equals(request.getEmail()) &&
+                ADMIN_PASSWORD.equals(request.getPassword())) {
+
+            return ResponseEntity.ok(
+                    new LoginResponse(
+                            "Login Successful",
+                            "ADMIN",
+                            "ADMIN-001",
+                            "Administrator"
+                    )
+            );
         }
 
-        // 2. Hospital
-        try {
-            Hospital hospital = hospitalService.loginHospital(request.getEmail(), request.getPassword());
-            if (hospital != null) {
-                Map<String, String> response = new HashMap<>();
-                response.put("message", "Login Successful");
-                response.put("userId", hospital.getId());
-                response.put("role", "HOSPITAL");
-                response.put("name", hospital.getName()); // Send Name
-                return ResponseEntity.ok(response);
-            }
-        } catch (Exception e) {}
+        // 2️⃣ HOSPITAL
+        Hospital hospital = hospitalService
+                .loginHospital(request.getEmail(), request.getPassword());
 
-        // 3. Doctor
-        try {
-            Doctor doctor = doctorService.loginDoctor(request.getEmail(), request.getPassword());
-            if (doctor != null) {
-                Map<String, String> response = new HashMap<>();
-                response.put("message", "Login Successful");
-                response.put("userId", doctor.getId());
-                response.put("role", "DOCTOR");
-                // Send Name (e.g., "Dr. John Doe")
-                response.put("name", doctor.getTitle() + " " + doctor.getFirstName() + " " + doctor.getLastName());
-                return ResponseEntity.ok(response);
-            }
-        } catch (Exception e) {}
+        if (hospital != null) {
+            return ResponseEntity.ok(
+                    new LoginResponse(
+                            "Login Successful",
+                            "HOSPITAL",
+                            hospital.getId(),
+                            hospital.getName()
+                    )
+            );
+        }
 
-        // 4. Patient
-        try {
-            Patient patient = patientService.loginPatient(request.getEmail(), request.getPassword());
-            if (patient != null) {
-                Map<String, String> response = new HashMap<>();
-                response.put("message", "Login Successful");
-                response.put("userId", patient.getId());
-                response.put("role", "PATIENT");
-                // Send Name
-                response.put("name", patient.getFirstName() + " " + patient.getLastName());
-                return ResponseEntity.ok(response);
-            }
-        } catch (Exception e) {}
+        // 3️⃣ DOCTOR
+        Doctor doctor = doctorService
+                .loginDoctor(request.getEmail(), request.getPassword());
 
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("message", "Invalid Email or Password");
-        return ResponseEntity.status(401).body(errorResponse);
+        if (doctor != null) {
+            return ResponseEntity.ok(
+                    new LoginResponse(
+                            "Login Successful",
+                            "DOCTOR",
+                            doctor.getId(),
+                            doctor.getTitle() + " " +
+                                    doctor.getFirstName() + " " +
+                                    doctor.getLastName()
+                    )
+            );
+        }
+
+        // 4️⃣ PATIENT
+        Patient patient = patientService
+                .loginPatient(request.getEmail(), request.getPassword());
+
+        if (patient != null) {
+            return ResponseEntity.ok(
+                    new LoginResponse(
+                            "Login Successful",
+                            "PATIENT",
+                            patient.getId(),
+                            patient.getFirstName() + " " +
+                                    patient.getLastName()
+                    )
+            );
+        }
+
+        // ❌ INVALID LOGIN
+        return ResponseEntity.status(401)
+                .body(new LoginResponse(
+                        "Invalid Email or Password",
+                        null,
+                        null,
+                        null
+                ));
     }
 }

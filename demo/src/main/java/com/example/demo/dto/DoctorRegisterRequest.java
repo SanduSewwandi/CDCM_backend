@@ -1,13 +1,6 @@
-package com.example.demo.model;
+package com.example.demo.dto;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-@Document(collection = "doctors")
-public class Doctor {
-
-    @Id
-    private String id;
+public class DoctorRegisterRequest {
 
     private String title;
     private String firstName;
@@ -18,33 +11,11 @@ public class Doctor {
     private String email;
     private String password;
 
-    public Doctor() {}
-
-    public Doctor(String title, String firstName, String lastName,
-                  String phone, String specialization,
-                  String medicalLicenseNumber,
-                  String email, String password) {
-        this.title = title;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.phone = phone;
-        this.specialization = specialization;
-        this.medicalLicenseNumber = medicalLicenseNumber;
-        this.email = email;
-        this.password = password;
-    }
+    public DoctorRegisterRequest() {}
 
     // ========================
     // Getters and Setters
     // ========================
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
 
     public String getTitle() {
         return title;
