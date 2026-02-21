@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.example.demo.model.Admin;
 import com.example.demo.service.AdminService;
+import com.example.demo.security.JwtService;
+
 
 
 @RestController
@@ -25,19 +27,20 @@ public class AuthController {
     private final DoctorService doctorService;
     private final HospitalService hospitalService;
     private final AdminService adminService;
-
-
+    private final JwtService jwtService;
 
 
     public AuthController(PatientService patientService,
                           DoctorService doctorService,
                           HospitalService hospitalService,
-                          AdminService adminService) {
+                          AdminService adminService,
+                          JwtService jwtService) {
 
         this.patientService = patientService;
         this.doctorService = doctorService;
         this.hospitalService = hospitalService;
-        this.adminService = adminService;  // 🔥 IMPORTANT
+        this.adminService = adminService;
+        this.jwtService = jwtService;   // 🔥 VERY IMPORTANT
     }
 
 
@@ -68,45 +71,74 @@ public class AuthController {
     // =========================
 
 
+    // =========================
+// LOGIN (ALL ROLES)
+// =========================
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest request) {
 
-        // 1️⃣ ADMIN
-        Admin admin = adminService.loginAdmin(request.getEmail(), request.getPassword());
+        // ADMIN
+        Admin admin = adminService.loginAdmin(
+                request.getEmail(),
+                request.getPassword()
+        );
 
         if (admin != null) {
+
+            String token = jwtService.generateToken(
+                    admin.getEmail(),
+                    "ADMIN"
+            );
+
             return ResponseEntity.ok(
                     new LoginResponse(
                             "Login Successful",
                             "ADMIN",
                             admin.getId(),
-                            admin.getName()
+                            admin.getName(),
+                            token
                     )
             );
         }
 
-
-        // 2️⃣ HOSPITAL
-        Hospital hospital = hospitalService
-                .loginHospital(request.getEmail(), request.getPassword());
+        // HOSPITAL
+        Hospital hospital = hospitalService.loginHospital(
+                request.getEmail(),
+                request.getPassword()
+        );
 
         if (hospital != null) {
+
+            String token = jwtService.generateToken(
+                    hospital.getEmail(),
+                    "HOSPITAL"
+            );
+
             return ResponseEntity.ok(
                     new LoginResponse(
                             "Login Successful",
                             "HOSPITAL",
                             hospital.getId(),
-                            hospital.getName()
+                            hospital.getName(),
+                            token
                     )
             );
         }
 
-        // 3️⃣ DOCTOR
-        Doctor doctor = doctorService
-                .loginDoctor(request.getEmail(), request.getPassword());
+        // DOCTOR
+        Doctor doctor = doctorService.loginDoctor(
+                request.getEmail(),
+                request.getPassword()
+        );
 
         if (doctor != null) {
+
+            String token = jwtService.generateToken(
+                    doctor.getEmail(),
+                    "DOCTOR"
+            );
+
             return ResponseEntity.ok(
                     new LoginResponse(
                             "Login Successful",
@@ -114,23 +146,33 @@ public class AuthController {
                             doctor.getId(),
                             doctor.getTitle() + " " +
                                     doctor.getFirstName() + " " +
-                                    doctor.getLastName()
+                                    doctor.getLastName(),
+                            token
                     )
             );
         }
 
-        // 4️⃣ PATIENT
-        Patient patient = patientService
-                .loginPatient(request.getEmail(), request.getPassword());
+        // PATIENT
+        Patient patient = patientService.loginPatient(
+                request.getEmail(),
+                request.getPassword()
+        );
 
         if (patient != null) {
+
+            String token = jwtService.generateToken(
+                    patient.getEmail(),
+                    "PATIENT"
+            );
+
             return ResponseEntity.ok(
                     new LoginResponse(
                             "Login Successful",
                             "PATIENT",
                             patient.getId(),
                             patient.getFirstName() + " " +
-                                    patient.getLastName()
+                                    patient.getLastName(),
+                            token
                     )
             );
         }
@@ -139,6 +181,7 @@ public class AuthController {
         return ResponseEntity.status(401)
                 .body(new LoginResponse(
                         "Invalid Email or Password",
+                        null,
                         null,
                         null,
                         null
