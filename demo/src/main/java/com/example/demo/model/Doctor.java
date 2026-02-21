@@ -8,7 +8,6 @@ public class Doctor {
 
     @Id
     private String id;
-
     private String title;
     private String firstName;
     private String lastName;
@@ -16,7 +15,9 @@ public class Doctor {
     private String specialization;
     private String medicalLicenseNumber;
     private String email;
-    private String password;
+    private String password;// hashed password
+    private String profileImage;
+
 
     public Doctor() {}
 
@@ -109,4 +110,6 @@ public class Doctor {
     public void setPassword(String password) {
         this.password = password;
     }
+    public String getProfileImage() { return profileImage; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
 }
