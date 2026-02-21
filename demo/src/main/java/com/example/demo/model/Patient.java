@@ -10,7 +10,6 @@ public class Patient {
 
     @Id
     private String id;
-
     private String title;
     private String firstName;
     private String lastName;
@@ -20,90 +19,40 @@ public class Patient {
     private String residentialAddress;
     private String email;
     private String password;
+    private String profileImage;
 
-    public Patient() {}
-
-    // ========================
     // Getters and Setters
-    // ========================
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public String getId() {
-        return id;
-    }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
 
-    public String getTitle() {
-        return title;
-    }
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
 
-    public void setTitle(String title) {
-        this.title = title;
-    }
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
 
-    public String getFirstName() {
-        return firstName;
-    }
+    public String getNicOrPassport() { return nicOrPassport; }
+    public void setNicOrPassport(String nicOrPassport) { this.nicOrPassport = nicOrPassport; }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
+    public String getContactNumber() { return contactNumber; }
+    public void setContactNumber(String contactNumber) { this.contactNumber = contactNumber; }
 
-    public String getLastName() {
-        return lastName;
-    }
+    public String getResidentialAddress() { return residentialAddress; }
+    public void setResidentialAddress(String residentialAddress) { this.residentialAddress = residentialAddress; }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public LocalDate getDateOfBirth() {
-        return dateOfBirth;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
-    public void setDateOfBirth(LocalDate dateOfBirth) {
-        this.dateOfBirth = dateOfBirth;
-    }
+    public String getProfileImage() { return profileImage; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
 
-    public String getNicOrPassport() {
-        return nicOrPassport;
-    }
-
-    public void setNicOrPassport(String nicOrPassport) {
-        this.nicOrPassport = nicOrPassport;
-    }
-
-    public String getContactNumber() {
-        return contactNumber;
-    }
-
-    public void setContactNumber(String contactNumber) {
-        this.contactNumber = contactNumber;
-    }
-
-    public String getResidentialAddress() {
-        return residentialAddress;
-    }
-
-    public void setResidentialAddress(String residentialAddress) {
-        this.residentialAddress = residentialAddress;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
 }

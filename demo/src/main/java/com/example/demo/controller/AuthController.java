@@ -55,6 +55,16 @@ public class AuthController {
         return ResponseEntity.ok(patient);
     }
 
+    @GetMapping("/patient/{id}")
+    public ResponseEntity<Patient> getPatientProfile(@PathVariable String id) {
+        return ResponseEntity.ok(patientService.getPatientById(id));
+    }
+
+    @PutMapping("/patient/{id}")
+    public ResponseEntity<Patient> updatePatientProfile(@PathVariable String id, @RequestBody Patient patient) {
+        return ResponseEntity.ok(patientService.updatePatient(id, patient));
+    }
+
     // =========================
     // REGISTER DOCTOR
     // =========================
@@ -64,6 +74,16 @@ public class AuthController {
 
         Doctor doctor = doctorService.registerDoctor(request);
         return ResponseEntity.ok(doctor);
+    }
+
+    @GetMapping("/doctors/{id}")
+    public ResponseEntity<Doctor> getDoctorProfile(@PathVariable String id) {
+        return ResponseEntity.ok(doctorService.getDoctorById(id));
+    }
+
+    @PutMapping("/doctors/{id}")
+    public ResponseEntity<Doctor> updateDoctorProfile(@PathVariable String id, @RequestBody Doctor doctor) {
+        return ResponseEntity.ok(doctorService.updateDoctor(id, doctor));
     }
 
     // =========================

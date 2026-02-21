@@ -62,4 +62,26 @@ public class DoctorService {
 
         return null;
     }
+
+    // Add these methods inside PatientService class
+
+    public Doctor getDoctorById(String id) {
+        return doctorRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+    }
+
+    public Doctor updateDoctor(String id, Doctor updatedData) {
+        Doctor existing = getDoctorById(id);
+
+        // Update fields
+        existing.setTitle(updatedData.getTitle());
+        existing.setFirstName(updatedData.getFirstName());
+        existing.setLastName(updatedData.getLastName());
+        existing.setPhone(updatedData.getPhone());
+        existing.setSpecialization(updatedData.getSpecialization());
+        existing.setMedicalLicenseNumber(updatedData.getMedicalLicenseNumber());
+        existing.setProfileImage(updatedData.getProfileImage());
+
+        return doctorRepository.save(existing);
+    }
 }
