@@ -15,7 +15,8 @@ public class Doctor {
     private String specialization;
     private String medicalLicenseNumber;
     private String email;
-    private String password; // hashed password
+    private String password;// hashed password
+    private String profileImage;
 
     public Doctor() {}
 
@@ -51,4 +52,6 @@ public class Doctor {
     public void setEmail(String email) { this.email = email; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+    public String getProfileImage() { return profileImage; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
 }

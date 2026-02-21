@@ -41,6 +41,28 @@ public class PatientService {
         return patientRepository.save(patient);
     }
 
+    // Add these methods inside PatientService class
+
+    public Patient getPatientById(String id) {
+        return patientRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+    }
+
+    public Patient updatePatient(String id, Patient updatedData) {
+        Patient existing = getPatientById(id);
+
+        // Update fields
+        existing.setFirstName(updatedData.getFirstName());
+        existing.setLastName(updatedData.getLastName());
+        existing.setContactNumber(updatedData.getContactNumber());
+        // ... update other fields as needed ...
+
+        // Update the Profile Image
+        existing.setProfileImage(updatedData.getProfileImage());
+
+        return patientRepository.save(existing);
+    }
+
     // Login
     public Patient loginPatient(String email, String password) {
         Patient patient = patientRepository.findByEmail(email)

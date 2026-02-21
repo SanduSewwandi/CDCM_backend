@@ -5,6 +5,7 @@ import com.example.demo.service.DoctorService;
 import com.example.demo.dto.LoginRequest;
 import com.example.demo.dto.LoginResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,6 +14,18 @@ public class DoctorController {
 
     @Autowired
     private DoctorService doctorService;
+
+    // Add these inside PatientController class
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getDoctor(@PathVariable String id) {
+        return ResponseEntity.ok(doctorService.getDoctorById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateDoctor(@PathVariable String id, @RequestBody Doctor patient) {
+        return ResponseEntity.ok(doctorService.updateDoctor(id, patient));
+    }
 
     // Doctor Sign-up
     @PostMapping("/signup")

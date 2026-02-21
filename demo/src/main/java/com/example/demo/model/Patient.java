@@ -19,6 +19,7 @@ public class Patient {
     private String residentialAddress;
     private String email;
     private String password;
+    private String profileImage;
 
     // Getters and Setters
     public String getId() { return id; }
@@ -50,5 +51,8 @@ public class Patient {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+
+    public String getProfileImage() { return profileImage; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
 
 }
