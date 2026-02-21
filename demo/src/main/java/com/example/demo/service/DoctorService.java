@@ -74,11 +74,12 @@ public class DoctorService {
         Doctor existing = getDoctorById(id);
 
         // Update fields
+        existing.setTitle(updatedData.getTitle());
         existing.setFirstName(updatedData.getFirstName());
         existing.setLastName(updatedData.getLastName());
-        // ... update other fields as needed ...
-
-        // Update the Profile Image
+        existing.setPhone(updatedData.getPhone());
+        existing.setSpecialization(updatedData.getSpecialization());
+        existing.setMedicalLicenseNumber(updatedData.getMedicalLicenseNumber());
         existing.setProfileImage(updatedData.getProfileImage());
 
         return doctorRepository.save(existing);
