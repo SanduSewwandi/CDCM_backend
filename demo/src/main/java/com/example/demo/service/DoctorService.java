@@ -1,9 +1,9 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.DoctorRegisterRequest;
 import com.example.demo.model.Doctor;
 import com.example.demo.repository.DoctorRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -11,27 +11,56 @@ import java.util.Optional;
 @Service
 public class DoctorService {
 
-    @Autowired
-    private DoctorRepository doctorRepository;
+    private final DoctorRepository doctorRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    public DoctorService(DoctorRepository doctorRepository,
+                         PasswordEncoder passwordEncoder) {
+        this.doctorRepository = doctorRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
-    // Sign-up
-    public Doctor registerDoctor(Doctor doctor) {
-        doctor.setPassword(passwordEncoder.encode(doctor.getPassword()));
+    // =========================
+    // REGISTER DOCTOR
+    // =========================
+    public Doctor registerDoctor(DoctorRegisterRequest request) {
+
+        Doctor doctor = new Doctor();
+
+        doctor.setTitle(request.getTitle());
+        doctor.setFirstName(request.getFirstName());
+        doctor.setLastName(request.getLastName());
+        doctor.setPhone(request.getPhone());
+        doctor.setSpecialization(request.getSpecialization());
+        doctor.setMedicalLicenseNumber(request.getMedicalLicenseNumber());
+        doctor.setEmail(request.getEmail());
+
+        // 🔐 Encrypt password
+        doctor.setPassword(
+                passwordEncoder.encode(request.getPassword())
+        );
+
         return doctorRepository.save(doctor);
     }
 
-    // Login
+    // =========================
+    // LOGIN DOCTOR
+    // =========================
     public Doctor loginDoctor(String email, String password) {
-        Optional<Doctor> optionalDoctor = doctorRepository.findByEmail(email);
-        if(optionalDoctor.isPresent()) {
-            Doctor doctor = optionalDoctor.get();
-            if(passwordEncoder.matches(password, doctor.getPassword())) {
+
+        Optional<Doctor> optional =
+                doctorRepository.findByEmail(email);
+
+        if (optional.isPresent()) {
+            Doctor doctor = optional.get();
+
+            if (passwordEncoder.matches(password,
+                    doctor.getPassword())) {
                 return doctor;
             }
         }
-        return null; // invalid credentials
+
+        return null;
     }
 
     // Add these methods inside PatientService class

@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.dto.PatientRegisterRequest;
 import com.example.demo.model.Patient;
 import com.example.demo.repository.PatientRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -11,23 +12,18 @@ import java.util.Optional;
 public class PatientService {
 
     private final PatientRepository patientRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public PatientService(PatientRepository patientRepository) {
+    public PatientService(PatientRepository patientRepository,
+                          PasswordEncoder passwordEncoder) {
         this.patientRepository = patientRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    // Signup
     public Patient registerPatient(PatientRegisterRequest request) {
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new RuntimeException("Passwords do not match");
-        }
-
-        Optional<Patient> existing = patientRepository.findByEmail(request.getEmail());
-        if (existing.isPresent()) {
-            throw new RuntimeException("Email already exists");
-        }
 
         Patient patient = new Patient();
+
         patient.setTitle(request.getTitle());
         patient.setFirstName(request.getFirstName());
         patient.setLastName(request.getLastName());
@@ -36,7 +32,11 @@ public class PatientService {
         patient.setContactNumber(request.getContactNumber());
         patient.setResidentialAddress(request.getResidentialAddress());
         patient.setEmail(request.getEmail());
-        patient.setPassword(request.getPassword()); // Later encrypt
+
+        // 🔐 Encrypt password
+        patient.setPassword(
+                passwordEncoder.encode(request.getPassword())
+        );
 
         return patientRepository.save(patient);
     }
@@ -65,14 +65,19 @@ public class PatientService {
 
     // Login
     public Patient loginPatient(String email, String password) {
-        Patient patient = patientRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
 
-        if (!patient.getPassword().equals(password)) {
-            throw new RuntimeException("Invalid email or password");
+        Optional<Patient> optional =
+                patientRepository.findByEmail(email);
+
+        if (optional.isPresent()) {
+            Patient patient = optional.get();
+
+            if (passwordEncoder.matches(password,
+                    patient.getPassword())) {
+                return patient;
+            }
         }
 
-        return patient;
+        return null;
     }
-
 }
