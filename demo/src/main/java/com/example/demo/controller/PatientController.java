@@ -41,6 +41,18 @@ public class PatientController {
         }
     }
 
+    // Add these inside PatientController class
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getPatient(@PathVariable String id) {
+        return ResponseEntity.ok(patientService.getPatientById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updatePatient(@PathVariable String id, @RequestBody Patient patient) {
+        return ResponseEntity.ok(patientService.updatePatient(id, patient));
+    }
+
 
 
 }
