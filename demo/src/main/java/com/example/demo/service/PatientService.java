@@ -52,12 +52,13 @@ public class PatientService {
         Patient existing = getPatientById(id);
 
         // Update fields
+        existing.setTitle(updatedData.getTitle());
         existing.setFirstName(updatedData.getFirstName());
         existing.setLastName(updatedData.getLastName());
+        existing.setDateOfBirth(updatedData.getDateOfBirth());
+        existing.setNicOrPassport(updatedData.getNicOrPassport());
         existing.setContactNumber(updatedData.getContactNumber());
-        // ... update other fields as needed ...
-
-        // Update the Profile Image
+        existing.setResidentialAddress(updatedData.getResidentialAddress());
         existing.setProfileImage(updatedData.getProfileImage());
 
         return patientRepository.save(existing);
