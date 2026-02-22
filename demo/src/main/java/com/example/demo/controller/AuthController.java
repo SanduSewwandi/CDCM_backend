@@ -43,6 +43,54 @@ public class AuthController {
         this.jwtService = jwtService;   // 🔥 VERY IMPORTANT
     }
 
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyEmail(@RequestBody java.util.Map<String, String> request) {
+
+        String email = request.get("email");
+        String code = request.get("code");
+        String role = request.get("role");
+
+        // 1. Basic Validation
+        if (email == null || code == null || role == null) {
+            return ResponseEntity.badRequest()
+                    .body(java.util.Collections.singletonMap("message", "Email, code and role are required"));
+        }
+
+        String result;
+
+        // 2. Wrap the service calls in a try-catch block
+        try {
+            if ("PATIENT".equalsIgnoreCase(role)) {
+                result = patientService.verifyOtp(email, code);
+            }
+            else if ("DOCTOR".equalsIgnoreCase(role)) {
+                result = doctorService.verifyOtp(email, code);
+            }
+            else {
+                return ResponseEntity.badRequest()
+                        .body(java.util.Collections.singletonMap("message", "Invalid role"));
+            }
+
+            // 3. Handle the success/failure result from the service
+            if ("Email verified successfully".equals(result)) {
+                return ResponseEntity.ok(
+                        java.util.Collections.singletonMap("message", result)
+                );
+            }
+
+            return ResponseEntity.badRequest()
+                    .body(java.util.Collections.singletonMap("message", result));
+
+        } catch (Exception e) {
+            // This will print the EXACT error in your IntelliJ/IDE console
+            e.printStackTrace();
+
+            // This stops the generic "Server Error" on the frontend and gives you a hint
+            return ResponseEntity.status(500)
+                    .body(java.util.Collections.singletonMap("message", "Backend Error: " + e.getMessage()));
+        }
+    }
+
 
     // =========================
     // REGISTER PATIENT
@@ -51,8 +99,14 @@ public class AuthController {
     public ResponseEntity<?> registerPatient(
             @Valid @RequestBody PatientRegisterRequest request) {
 
-        Patient patient = patientService.registerPatient(request);
-        return ResponseEntity.ok(patient);
+        patientService.registerPatient(request);
+
+        return ResponseEntity.ok(
+                java.util.Collections.singletonMap(
+                        "message",
+                        "Registration successful. Please verify your email."
+                )
+        );
     }
 
     // =========================
@@ -62,8 +116,14 @@ public class AuthController {
     public ResponseEntity<?> registerDoctor(
             @Valid @RequestBody DoctorRegisterRequest request) {
 
-        Doctor doctor = doctorService.registerDoctor(request);
-        return ResponseEntity.ok(doctor);
+        doctorService.registerDoctor(request);
+
+        return ResponseEntity.ok(
+                java.util.Collections.singletonMap(
+                        "message",
+                        "Registration successful. Please verify your email."
+                )
+        );
     }
 
     // =========================
@@ -134,6 +194,17 @@ public class AuthController {
 
         if (doctor != null) {
 
+            if (!doctor.isVerified()) {
+                return ResponseEntity.status(403)
+                        .body(new LoginResponse(
+                                "Please verify your email first",
+                                null,
+                                null,
+                                null,
+                                null
+                        ));
+            }
+
             String token = jwtService.generateToken(
                     doctor.getEmail(),
                     "DOCTOR"
@@ -159,6 +230,17 @@ public class AuthController {
         );
 
         if (patient != null) {
+
+            if (!patient.isVerified()) {
+                return ResponseEntity.status(403)
+                        .body(new LoginResponse(
+                                "Please verify your email first",
+                                null,
+                                null,
+                                null,
+                                null
+                        ));
+            }
 
             String token = jwtService.generateToken(
                     patient.getEmail(),

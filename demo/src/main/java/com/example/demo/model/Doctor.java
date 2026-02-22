@@ -3,6 +3,8 @@ package com.example.demo.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.Date;
+
 @Document(collection = "doctors")
 public class Doctor {
 
@@ -16,6 +18,11 @@ public class Doctor {
     private String specialization;
     private String medicalLicenseNumber;
     private String email;
+
+    private boolean verified;
+    private String verificationCode;
+    private Date verificationExpiry;   // ✅ FIXED
+
     private String password;
 
     public Doctor() {}
@@ -24,6 +31,7 @@ public class Doctor {
                   String phone, String specialization,
                   String medicalLicenseNumber,
                   String email, String password) {
+
         this.title = title;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -100,6 +108,30 @@ public class Doctor {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
+
+    public String getVerificationCode() {
+        return verificationCode;
+    }
+
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
+    }
+
+    public Date getVerificationExpiry() {
+        return verificationExpiry;
+    }
+
+    public void setVerificationExpiry(Date verificationExpiry) {
+        this.verificationExpiry = verificationExpiry;
     }
 
     public String getPassword() {
