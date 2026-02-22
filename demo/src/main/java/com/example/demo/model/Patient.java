@@ -21,7 +21,7 @@ public class Patient {
     private String email;
     private boolean verified;
     private String verificationCode;
-    private Date verificationExpiry;   // ✅ FIXED
+    private Date verificationExpiry;  
     private String password;
     private String profileImage;
 
