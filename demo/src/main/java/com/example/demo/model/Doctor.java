@@ -2,7 +2,6 @@ package com.example.demo.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-
 import java.util.Date;
 
 @Document(collection = "doctors")
@@ -18,12 +17,14 @@ public class Doctor {
     private String specialization;
     private String medicalLicenseNumber;
     private String email;
+    private String password;// hashed password
+    private String profileImage;
+
 
     private boolean verified;
     private String verificationCode;
     private Date verificationExpiry;   // ✅ FIXED
 
-    private String password;
 
     public Doctor() {}
 
@@ -31,7 +32,6 @@ public class Doctor {
                   String phone, String specialization,
                   String medicalLicenseNumber,
                   String email, String password) {
-
         this.title = title;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -141,4 +141,6 @@ public class Doctor {
     public void setPassword(String password) {
         this.password = password;
     }
+    public String getProfileImage() { return profileImage; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
 }
