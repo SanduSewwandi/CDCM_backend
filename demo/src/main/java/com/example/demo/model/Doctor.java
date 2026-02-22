@@ -2,12 +2,14 @@ package com.example.demo.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import java.util.Date;
 
 @Document(collection = "doctors")
 public class Doctor {
 
     @Id
     private String id;
+
     private String title;
     private String firstName;
     private String lastName;
@@ -17,6 +19,11 @@ public class Doctor {
     private String email;
     private String password;// hashed password
     private String profileImage;
+
+
+    private boolean verified;
+    private String verificationCode;
+    private Date verificationExpiry;   
 
 
     public Doctor() {}
@@ -101,6 +108,30 @@ public class Doctor {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
+
+    public String getVerificationCode() {
+        return verificationCode;
+    }
+
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
+    }
+
+    public Date getVerificationExpiry() {
+        return verificationExpiry;
+    }
+
+    public void setVerificationExpiry(Date verificationExpiry) {
+        this.verificationExpiry = verificationExpiry;
     }
 
     public String getPassword() {
