@@ -130,7 +130,7 @@ public class DoctorService {
 
         doctorRepository.save(doctor);
 
-        return "Email verified successfully. Now you can login your account";
+        return "Email verified successfully";
     }
 
     // Add these methods inside PatientService class

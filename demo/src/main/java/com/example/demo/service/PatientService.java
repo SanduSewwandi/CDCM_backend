@@ -125,7 +125,7 @@ public class PatientService {
 
         patientRepository.save(patient);
 
-        return "Email verified successfully. Now you can Login";
+        return "Email verified successfully";
     }
     // Add these methods inside PatientService class
 
