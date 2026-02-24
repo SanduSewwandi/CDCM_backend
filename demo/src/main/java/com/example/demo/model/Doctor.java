@@ -23,7 +23,7 @@ public class Doctor {
 
     private boolean verified;
     private String verificationCode;
-    private Date verificationExpiry;   // ✅ FIXED
+    private Date verificationExpiry;   
 
 
     public Doctor() {}
