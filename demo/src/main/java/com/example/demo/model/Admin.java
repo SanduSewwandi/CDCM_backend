@@ -12,8 +12,14 @@ public class Admin {
     private String name;
     private String email;
     private String password;
+    private String role;
+
+
 
     public Admin() {}
+
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
