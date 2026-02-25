@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.Optional;
+import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Service
 public class DoctorService {
@@ -153,6 +155,46 @@ public class DoctorService {
         existing.setProfileImage(updatedData.getProfileImage());
 
         return doctorRepository.save(existing);
+    }
+
+    // ================= FORGOT PASSWORD =================
+    public boolean sendPasswordResetEmail(String email) {
+
+        Optional<Doctor> optional = doctorRepository.findByEmail(email);
+        if (optional.isEmpty()) return false;
+
+        Doctor doctor = optional.get();
+
+        String token = UUID.randomUUID().toString();
+        doctor.setResetToken(token);
+        doctor.setResetTokenExpiry(LocalDateTime.now().plusMinutes(30));
+
+        doctorRepository.save(doctor);
+
+        emailService.sendPasswordResetEmail(doctor.getEmail(), token);
+
+        return true;
+    }
+
+    // ================= RESET PASSWORD =================
+    public boolean resetPassword(String token, String newPassword) {
+
+        Optional<Doctor> optional = doctorRepository.findByResetToken(token);
+        if (optional.isEmpty()) return false;
+
+        Doctor doctor = optional.get();
+
+        if (doctor.getResetTokenExpiry() == null ||
+                doctor.getResetTokenExpiry().isBefore(LocalDateTime.now()))
+            return false;
+
+        doctor.setPassword(passwordEncoder.encode(newPassword));
+        doctor.setResetToken(null);
+        doctor.setResetTokenExpiry(null);
+
+        doctorRepository.save(doctor);
+
+        return true;
     }
 }
 
