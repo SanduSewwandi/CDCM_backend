@@ -13,9 +13,7 @@ public class DoctorRegisterRequest {
 
     public DoctorRegisterRequest() {}
 
-    // ========================
     // Getters and Setters
-    // ========================
 
     public String getTitle() {
         return title;
