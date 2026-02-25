@@ -3,10 +3,13 @@ package com.example.demo.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
+
 @Document(collection = "hospitals")
 public class Hospital {
 
     @Id
+
     private String id;
 
     private String name;
@@ -16,6 +19,11 @@ public class Hospital {
     private String address;
     private String licenseNumber;
     private String managerName;
+
+    // Password reset
+    private String resetToken;
+    private LocalDateTime resetTokenExpiry;
+
 
     public Hospital() {}
 
@@ -86,4 +94,10 @@ public class Hospital {
     public void setManagerName(String managerName) {
         this.managerName = managerName;
     }
+
+    public String getResetToken() { return resetToken; }
+    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
+
+    public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
 }

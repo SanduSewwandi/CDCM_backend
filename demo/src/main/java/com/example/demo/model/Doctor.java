@@ -2,12 +2,15 @@ package com.example.demo.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Document(collection = "doctors")
 public class Doctor {
 
     @Id
+
     private String id;
     private String title;
     private String firstName;
@@ -21,6 +24,15 @@ public class Doctor {
     private String experience;
     private List<String> qualifications;
     private List<String> hospitals;
+
+
+    private boolean verified;
+    private String verificationCode;
+    private Date verificationExpiry;
+
+    // Password reset
+    private String resetToken;
+    private LocalDateTime resetTokenExpiry;
 
 
     public Doctor() {}
@@ -37,7 +49,9 @@ public class Doctor {
         this.medicalLicenseNumber = medicalLicenseNumber;
         this.email = email;
         this.password = password;
+        this.verified = false;
     }
+
 
     // ========================
     // Getters and Setters
@@ -107,6 +121,30 @@ public class Doctor {
         this.email = email;
     }
 
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
+
+    public String getVerificationCode() {
+        return verificationCode;
+    }
+
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
+    }
+
+    public Date getVerificationExpiry() {
+        return verificationExpiry;
+    }
+
+    public void setVerificationExpiry(Date verificationExpiry) {
+        this.verificationExpiry = verificationExpiry;
+    }
+
     public String getPassword() {
         return password;
     }
@@ -116,6 +154,14 @@ public class Doctor {
     }
     public String getProfileImage() { return profileImage; }
     public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
+
+
+    public String getResetToken() { return resetToken; }
+    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
+
+    public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
+
     public String getExperience() {
         return experience;
     }

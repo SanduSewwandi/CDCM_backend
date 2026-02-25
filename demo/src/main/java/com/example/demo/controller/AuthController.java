@@ -7,17 +7,16 @@ import com.example.demo.dto.PatientRegisterRequest;
 import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
 import com.example.demo.model.Patient;
+import com.example.demo.model.Admin;
 import com.example.demo.service.DoctorService;
 import com.example.demo.service.HospitalService;
 import com.example.demo.service.PatientService;
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import com.example.demo.model.Admin;
 import com.example.demo.service.AdminService;
 import com.example.demo.security.JwtService;
 
-
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -40,9 +39,60 @@ public class AuthController {
         this.doctorService = doctorService;
         this.hospitalService = hospitalService;
         this.adminService = adminService;
-        this.jwtService = jwtService;   // 🔥 VERY IMPORTANT
+        this.jwtService = jwtService;
     }
 
+    // =========================
+    // VERIFY EMAIL (OTP)
+    // =========================
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyEmail(@RequestBody java.util.Map<String, String> request) {
+
+        String email = request.get("email");
+        String code = request.get("code");
+        String role = request.get("role");
+
+        if (email == null || code == null || role == null) {
+            return ResponseEntity.badRequest()
+                    .body(java.util.Collections.singletonMap(
+                            "message",
+                            "Email, code and role are required"
+                    ));
+        }
+
+        try {
+            String result;
+
+            if ("PATIENT".equalsIgnoreCase(role)) {
+                result = patientService.verifyOtp(email, code);
+            } else if ("DOCTOR".equalsIgnoreCase(role)) {
+                result = doctorService.verifyOtp(email, code);
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(java.util.Collections.singletonMap(
+                                "message",
+                                "Invalid role"
+                        ));
+            }
+
+            if ("Email verified successfully".equals(result)) {
+                return ResponseEntity.ok(
+                        java.util.Collections.singletonMap("message", result)
+                );
+            }
+
+            return ResponseEntity.badRequest()
+                    .body(java.util.Collections.singletonMap("message", result));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(java.util.Collections.singletonMap(
+                            "message",
+                            "Backend Error: " + e.getMessage()
+                    ));
+        }
+    }
 
     // =========================
     // REGISTER PATIENT
@@ -51,18 +101,14 @@ public class AuthController {
     public ResponseEntity<?> registerPatient(
             @Valid @RequestBody PatientRegisterRequest request) {
 
-        Patient patient = patientService.registerPatient(request);
-        return ResponseEntity.ok(patient);
-    }
+        patientService.registerPatient(request);
 
-    @GetMapping("/patient/{id}")
-    public ResponseEntity<Patient> getPatientProfile(@PathVariable String id) {
-        return ResponseEntity.ok(patientService.getPatientById(id));
-    }
-
-    @PutMapping("/patient/{id}")
-    public ResponseEntity<Patient> updatePatientProfile(@PathVariable String id, @RequestBody Patient patient) {
-        return ResponseEntity.ok(patientService.updatePatient(id, patient));
+        return ResponseEntity.ok(
+                java.util.Collections.singletonMap(
+                        "message",
+                        "Registration successful. Please verify your email."
+                )
+        );
     }
 
     // =========================
@@ -72,28 +118,19 @@ public class AuthController {
     public ResponseEntity<?> registerDoctor(
             @Valid @RequestBody DoctorRegisterRequest request) {
 
-        Doctor doctor = doctorService.registerDoctor(request);
-        return ResponseEntity.ok(doctor);
-    }
+        doctorService.registerDoctor(request);
 
-//    @GetMapping("/doctors/{id}")
-//    public ResponseEntity<Doctor> getDoctorProfile(@PathVariable String id) {
-//        return ResponseEntity.ok(doctorService.getDoctorById(id));
-//    }
-//
-//    @PutMapping("/doctors/{id}")
-//    public ResponseEntity<Doctor> updateDoctorProfile(@PathVariable String id, @RequestBody Doctor doctor) {
-//        return ResponseEntity.ok(doctorService.updateDoctor(id, doctor));
-//    }
+        return ResponseEntity.ok(
+                java.util.Collections.singletonMap(
+                        "message",
+                        "Registration successful. Please verify your email."
+                )
+        );
+    }
 
     // =========================
     // LOGIN (ALL ROLES)
     // =========================
-
-
-    // =========================
-// LOGIN (ALL ROLES)
-// =========================
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest request) {
@@ -105,11 +142,7 @@ public class AuthController {
         );
 
         if (admin != null) {
-
-            String token = jwtService.generateToken(
-                    admin.getEmail(),
-                    "ADMIN"
-            );
+            String token = jwtService.generateToken(admin.getEmail(), "ADMIN");
 
             return ResponseEntity.ok(
                     new LoginResponse(
@@ -129,11 +162,7 @@ public class AuthController {
         );
 
         if (hospital != null) {
-
-            String token = jwtService.generateToken(
-                    hospital.getEmail(),
-                    "HOSPITAL"
-            );
+            String token = jwtService.generateToken(hospital.getEmail(), "HOSPITAL");
 
             return ResponseEntity.ok(
                     new LoginResponse(
@@ -154,10 +183,18 @@ public class AuthController {
 
         if (doctor != null) {
 
-            String token = jwtService.generateToken(
-                    doctor.getEmail(),
-                    "DOCTOR"
-            );
+            if (!doctor.isVerified()) {
+                return ResponseEntity.status(403)
+                        .body(new LoginResponse(
+                                "Please verify your email first",
+                                null,
+                                null,
+                                null,
+                                null
+                        ));
+            }
+
+            String token = jwtService.generateToken(doctor.getEmail(), "DOCTOR");
 
             return ResponseEntity.ok(
                     new LoginResponse(
@@ -180,10 +217,18 @@ public class AuthController {
 
         if (patient != null) {
 
-            String token = jwtService.generateToken(
-                    patient.getEmail(),
-                    "PATIENT"
-            );
+            if (!patient.isVerified()) {
+                return ResponseEntity.status(403)
+                        .body(new LoginResponse(
+                                "Please verify your email first",
+                                null,
+                                null,
+                                null,
+                                null
+                        ));
+            }
+
+            String token = jwtService.generateToken(patient.getEmail(), "PATIENT");
 
             return ResponseEntity.ok(
                     new LoginResponse(
@@ -197,7 +242,7 @@ public class AuthController {
             );
         }
 
-        // ❌ INVALID LOGIN
+        // INVALID LOGIN
         return ResponseEntity.status(401)
                 .body(new LoginResponse(
                         "Invalid Email or Password",
@@ -207,4 +252,57 @@ public class AuthController {
                         null
                 ));
     }
+
+    // =========================
+    // FORGOT PASSWORD
+    // =========================
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
+        try {
+            boolean sent = patientService.sendPasswordResetEmail(email);
+
+            if (sent) {
+                return ResponseEntity.ok(
+                        java.util.Collections.singletonMap(
+                                "message",
+                                "Password reset email sent"
+                        )
+                );
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(java.util.Collections.singletonMap(
+                                "message",
+                                "Email not found"
+                        ));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(java.util.Collections.singletonMap(
+                            "message",
+                            "Backend Error: " + e.getMessage()
+                    ));
+        }
+    }
+
+        @PostMapping("/reset-password")
+        public ResponseEntity<?> resetPassword(@RequestBody java.util.Map<String, String> request) {
+
+            String token = request.get("token");
+            String newPassword = request.get("newPassword");
+
+            if (token == null || newPassword == null) {
+                return ResponseEntity.badRequest().body("Token and password required");
+            }
+
+            boolean success = patientService.resetPassword(token.trim(), newPassword);
+
+            if (success) {
+                return ResponseEntity.ok("Password reset successful");
+            }
+
+            return ResponseEntity.badRequest().body("Invalid or expired token");
+        }
+
 }
