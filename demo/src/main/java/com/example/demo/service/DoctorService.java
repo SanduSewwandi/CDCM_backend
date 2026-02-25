@@ -8,7 +8,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import com.example.demo.dto.DoctorAccountDTO;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Service
 public class DoctorService {
@@ -58,7 +63,7 @@ public class DoctorService {
         doctor.setPassword(passwordEncoder.encode(request.getPassword()));
 
         // 3. Generate and set OTP
-        String otp = String.valueOf((int)(Math.random() * 900000) + 100000);
+        String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
         doctor.setVerified(false);
         doctor.setVerificationCode(otp);
         doctor.setVerificationExpiry(new Date(System.currentTimeMillis() + 5 * 60 * 1000));
@@ -154,6 +159,90 @@ public class DoctorService {
 
         return doctorRepository.save(existing);
     }
+
+    // ================= FORGOT PASSWORD =================
+    public boolean sendPasswordResetEmail(String email) {
+
+        Optional<Doctor> optional = doctorRepository.findByEmail(email);
+        if (optional.isEmpty()) return false;
+
+        Doctor doctor = optional.get();
+
+        String token = UUID.randomUUID().toString();
+        doctor.setResetToken(token);
+        doctor.setResetTokenExpiry(LocalDateTime.now().plusMinutes(30));
+
+        doctorRepository.save(doctor);
+
+        emailService.sendPasswordResetEmail(doctor.getEmail(), token);
+
+        return true;
+    }
+
+    // ================= RESET PASSWORD =================
+    public boolean resetPassword(String token, String newPassword) {
+
+        Optional<Doctor> optional = doctorRepository.findByResetToken(token);
+        if (optional.isEmpty()) return false;
+
+        Doctor doctor = optional.get();
+
+        if (doctor.getResetTokenExpiry() == null ||
+                doctor.getResetTokenExpiry().isBefore(LocalDateTime.now()))
+            return false;
+
+        doctor.setPassword(passwordEncoder.encode(newPassword));
+        doctor.setResetToken(null);
+        doctor.setResetTokenExpiry(null);
+
+        doctorRepository.save(doctor);
+
+        return true;
+    }
 }
 
+    // =========================
+// GET DOCTOR ACCOUNT DETAILS
+// =========================
+    public DoctorAccountDTO getDoctorAccount(String id) {
+        Doctor doctor = getDoctorById(id);
+
+        DoctorAccountDTO dto = new DoctorAccountDTO();
+        dto.setSpecialization(doctor.getSpecialization());
+        dto.setExperience(doctor.getExperience());
+        dto.setQualifications(doctor.getQualifications());
+        dto.setHospitals(doctor.getHospitals());
+
+        return dto;
+    }
+
+    // =========================
+// UPDATE DOCTOR ACCOUNT DETAILS
+// =========================
+    @Transactional
+    public DoctorAccountDTO updateDoctorAccount(String id, DoctorAccountDTO dto) {
+        Doctor doctor = getDoctorById(id);
+
+        // update specialization (specialty)
+        doctor.setSpecialization(dto.getSpecialization());
+
+        // update experience
+        doctor.setExperience(dto.getExperience());
+
+        // update qualifications list safely
+        if (doctor.getQualifications() == null) doctor.setQualifications(new ArrayList<>());
+        doctor.getQualifications().clear();
+        if (dto.getQualifications() != null) doctor.getQualifications().addAll(dto.getQualifications());
+
+        // update hospitals list safely
+        if (doctor.getHospitals() == null) doctor.setHospitals(new ArrayList<>());
+        doctor.getHospitals().clear();
+        if (dto.getHospitals() != null) doctor.getHospitals().addAll(dto.getHospitals());
+
+        doctorRepository.save(doctor);
+
+        return getDoctorAccount(id);
+    }
+
+}
 

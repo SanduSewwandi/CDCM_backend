@@ -2,7 +2,7 @@ package com.example.demo.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-
+import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.Date;
 
@@ -21,9 +21,15 @@ public class Patient {
     private String email;
     private boolean verified;
     private String verificationCode;
-    private Date verificationExpiry;  
+    private Date verificationExpiry;
     private String password;
     private String profileImage;
+
+    // Password reset fields
+    private String resetToken;
+    private LocalDateTime resetTokenExpiry;
+
+    public Patient() {}
 
     // Getters and Setters
     public String getId() { return id; }
@@ -68,4 +74,11 @@ public class Patient {
     public String getProfileImage() { return profileImage; }
     public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
 
+    public String getResetToken() { return resetToken; }
+    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
+
+    public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
 }
+
+

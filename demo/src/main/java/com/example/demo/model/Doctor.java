@@ -3,13 +3,15 @@ package com.example.demo.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Date;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Document(collection = "doctors")
 public class Doctor {
 
     @Id
-    private String id;
 
+    private String id;
     private String title;
     private String firstName;
     private String lastName;
@@ -19,11 +21,18 @@ public class Doctor {
     private String email;
     private String password;// hashed password
     private String profileImage;
+    private String experience;
+    private List<String> qualifications;
+    private List<String> hospitals;
 
 
     private boolean verified;
     private String verificationCode;
-    private Date verificationExpiry;   
+    private Date verificationExpiry;
+
+    // Password reset
+    private String resetToken;
+    private LocalDateTime resetTokenExpiry;
 
 
     public Doctor() {}
@@ -40,7 +49,9 @@ public class Doctor {
         this.medicalLicenseNumber = medicalLicenseNumber;
         this.email = email;
         this.password = password;
+        this.verified = false;
     }
+
 
     // ========================
     // Getters and Setters
@@ -143,4 +154,36 @@ public class Doctor {
     }
     public String getProfileImage() { return profileImage; }
     public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
+
+
+    public String getResetToken() { return resetToken; }
+    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
+
+    public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
+
+    public String getExperience() {
+        return experience;
+    }
+
+    public void setExperience(String experience) {
+        this.experience = experience;
+    }
+
+    public List<String> getQualifications() {
+        return qualifications;
+    }
+
+    public void setQualifications(List<String> qualifications) {
+        this.qualifications = qualifications;
+    }
+
+    public List<String> getHospitals() {
+        return hospitals;
+    }
+
+    public void setHospitals(List<String> hospitals) {
+        this.hospitals = hospitals;
+    }
 }
+
