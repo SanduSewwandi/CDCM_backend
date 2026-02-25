@@ -254,74 +254,49 @@ public class AuthController {
     }
 
     // =========================
-// FORGOT PASSWORD (ALL ROLES)
-// =========================
+    // FORGOT PASSWORD
+    // =========================
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(
-            @RequestParam String email,
-            @RequestParam String role) {
-
+    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
         try {
-
-            boolean sent = false;
-
-            if ("PATIENT".equalsIgnoreCase(role)) {
-                sent = patientService.sendPasswordResetEmail(email);
-
-            } else if ("DOCTOR".equalsIgnoreCase(role)) {
-                sent = doctorService.sendPasswordResetEmail(email);
-
-            } else if ("HOSPITAL".equalsIgnoreCase(role)) {
-                sent = hospitalService.sendPasswordResetEmail(email);
-
-            } else {
-                return ResponseEntity.badRequest()
-                        .body("Invalid role");
-            }
+            boolean sent = patientService.sendPasswordResetEmail(email);
 
             if (sent) {
-                return ResponseEntity.ok("Password reset email sent");
+                return ResponseEntity.ok(
+                        java.util.Collections.singletonMap(
+                                "message",
+                                "Password reset email sent"
+                        )
+                );
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(java.util.Collections.singletonMap(
+                                "message",
+                                "Email not found"
+                        ));
             }
-
-            return ResponseEntity.badRequest().body("Email not found");
 
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500)
-                    .body("Backend Error: " + e.getMessage());
+                    .body(java.util.Collections.singletonMap(
+                            "message",
+                            "Backend Error: " + e.getMessage()
+                    ));
         }
     }
-    // =========================
-// RESET PASSWORD (ALL ROLES)
-// =========================
+
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(
-            @RequestBody java.util.Map<String, String> request) {
+    public ResponseEntity<?> resetPassword(@RequestBody java.util.Map<String, String> request) {
 
         String token = request.get("token");
         String newPassword = request.get("newPassword");
-        String role = request.get("role");
 
-        if (token == null || newPassword == null || role == null) {
-            return ResponseEntity.badRequest()
-                    .body("Token, password and role required");
+        if (token == null || newPassword == null) {
+            return ResponseEntity.badRequest().body("Token and password required");
         }
 
-        boolean success = false;
-
-        if ("PATIENT".equalsIgnoreCase(role)) {
-            success = patientService.resetPassword(token.trim(), newPassword);
-
-        } else if ("DOCTOR".equalsIgnoreCase(role)) {
-            success = doctorService.resetPassword(token.trim(), newPassword);
-
-        } else if ("HOSPITAL".equalsIgnoreCase(role)) {
-            success = hospitalService.resetPassword(token.trim(), newPassword);
-
-        } else {
-            return ResponseEntity.badRequest()
-                    .body("Invalid role");
-        }
+        boolean success = patientService.resetPassword(token.trim(), newPassword);
 
         if (success) {
             return ResponseEntity.ok("Password reset successful");
