@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Date;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Document(collection = "doctors")
 public class Doctor {
@@ -11,7 +12,6 @@ public class Doctor {
     @Id
 
     private String id;
-
     private String title;
     private String firstName;
     private String lastName;
@@ -21,6 +21,9 @@ public class Doctor {
     private String email;
     private String password;// hashed password
     private String profileImage;
+    private String experience;
+    private List<String> qualifications;
+    private List<String> hospitals;
 
 
     private boolean verified;
@@ -158,4 +161,29 @@ public class Doctor {
 
     public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
     public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
+
+    public String getExperience() {
+        return experience;
+    }
+
+    public void setExperience(String experience) {
+        this.experience = experience;
+    }
+
+    public List<String> getQualifications() {
+        return qualifications;
+    }
+
+    public void setQualifications(List<String> qualifications) {
+        this.qualifications = qualifications;
+    }
+
+    public List<String> getHospitals() {
+        return hospitals;
+    }
+
+    public void setHospitals(List<String> hospitals) {
+        this.hospitals = hospitals;
+    }
 }
+
