@@ -2,6 +2,7 @@ package com.example.demo.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import java.util.List;
 
 @Document(collection = "doctors")
 public class Doctor {
@@ -17,6 +18,9 @@ public class Doctor {
     private String email;
     private String password;// hashed password
     private String profileImage;
+    private String experience;
+    private List<String> qualifications;
+    private List<String> hospitals;
 
 
     public Doctor() {}
@@ -112,4 +116,28 @@ public class Doctor {
     }
     public String getProfileImage() { return profileImage; }
     public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
+    public String getExperience() {
+        return experience;
+    }
+
+    public void setExperience(String experience) {
+        this.experience = experience;
+    }
+
+    public List<String> getQualifications() {
+        return qualifications;
+    }
+
+    public void setQualifications(List<String> qualifications) {
+        this.qualifications = qualifications;
+    }
+
+    public List<String> getHospitals() {
+        return hospitals;
+    }
+
+    public void setHospitals(List<String> hospitals) {
+        this.hospitals = hospitals;
+    }
 }
+

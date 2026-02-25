@@ -76,15 +76,15 @@ public class AuthController {
         return ResponseEntity.ok(doctor);
     }
 
-    @GetMapping("/doctors/{id}")
-    public ResponseEntity<Doctor> getDoctorProfile(@PathVariable String id) {
-        return ResponseEntity.ok(doctorService.getDoctorById(id));
-    }
-
-    @PutMapping("/doctors/{id}")
-    public ResponseEntity<Doctor> updateDoctorProfile(@PathVariable String id, @RequestBody Doctor doctor) {
-        return ResponseEntity.ok(doctorService.updateDoctor(id, doctor));
-    }
+//    @GetMapping("/doctors/{id}")
+//    public ResponseEntity<Doctor> getDoctorProfile(@PathVariable String id) {
+//        return ResponseEntity.ok(doctorService.getDoctorById(id));
+//    }
+//
+//    @PutMapping("/doctors/{id}")
+//    public ResponseEntity<Doctor> updateDoctorProfile(@PathVariable String id, @RequestBody Doctor doctor) {
+//        return ResponseEntity.ok(doctorService.updateDoctor(id, doctor));
+//    }
 
     // =========================
     // LOGIN (ALL ROLES)

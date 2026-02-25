@@ -5,7 +5,9 @@ import com.example.demo.model.Doctor;
 import com.example.demo.repository.DoctorRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import com.example.demo.dto.DoctorAccountDTO;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.ArrayList;
 import java.util.Optional;
 
 @Service
@@ -83,5 +85,47 @@ public class DoctorService {
         existing.setProfileImage(updatedData.getProfileImage());
 
         return doctorRepository.save(existing);
+    }
+    // =========================
+// GET DOCTOR ACCOUNT DETAILS
+// =========================
+    public DoctorAccountDTO getDoctorAccount(String id) {
+        Doctor doctor = getDoctorById(id);
+
+        DoctorAccountDTO dto = new DoctorAccountDTO();
+        dto.setSpecialization(doctor.getSpecialization());
+        dto.setExperience(doctor.getExperience());
+        dto.setQualifications(doctor.getQualifications());
+        dto.setHospitals(doctor.getHospitals());
+
+        return dto;
+    }
+
+    // =========================
+// UPDATE DOCTOR ACCOUNT DETAILS
+// =========================
+    @Transactional
+    public DoctorAccountDTO updateDoctorAccount(String id, DoctorAccountDTO dto) {
+        Doctor doctor = getDoctorById(id);
+
+        // update specialization (specialty)
+        doctor.setSpecialization(dto.getSpecialization());
+
+        // update experience
+        doctor.setExperience(dto.getExperience());
+
+        // update qualifications list safely
+        if (doctor.getQualifications() == null) doctor.setQualifications(new ArrayList<>());
+        doctor.getQualifications().clear();
+        if (dto.getQualifications() != null) doctor.getQualifications().addAll(dto.getQualifications());
+
+        // update hospitals list safely
+        if (doctor.getHospitals() == null) doctor.setHospitals(new ArrayList<>());
+        doctor.getHospitals().clear();
+        if (dto.getHospitals() != null) doctor.getHospitals().addAll(dto.getHospitals());
+
+        doctorRepository.save(doctor);
+
+        return getDoctorAccount(id);
     }
 }
