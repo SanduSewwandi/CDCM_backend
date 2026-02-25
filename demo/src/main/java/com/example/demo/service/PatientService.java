@@ -6,8 +6,10 @@ import com.example.demo.repository.PatientRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class PatientService {
@@ -19,7 +21,6 @@ public class PatientService {
     public PatientService(PatientRepository patientRepository,
                           PasswordEncoder passwordEncoder,
                           EmailService emailService) {
-
         this.patientRepository = patientRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -27,24 +28,20 @@ public class PatientService {
 
     // ================= REGISTER =================
     public Patient registerPatient(PatientRegisterRequest request) {
-        // 1. Check for existing email to prevent duplicates
+
         Optional<Patient> existingPatient = patientRepository.findByEmail(request.getEmail());
 
         Patient patient;
 
         if (existingPatient.isPresent()) {
             patient = existingPatient.get();
-            // If they are already verified, prevent a new registration
             if (patient.isVerified()) {
                 throw new RuntimeException("Email is already registered and verified.");
             }
-            // If not verified, the 'patient' variable now points to the existing record
         } else {
-            // Only create a 'new' object if the email doesn't exist at all
             patient = new Patient();
         }
 
-        // 2. Map fields (this will either populate the new object or update the existing one)
         patient.setTitle(request.getTitle());
         patient.setFirstName(request.getFirstName());
         patient.setLastName(request.getLastName());
@@ -53,71 +50,51 @@ public class PatientService {
         patient.setContactNumber(request.getContactNumber());
         patient.setResidentialAddress(request.getResidentialAddress());
         patient.setEmail(request.getEmail());
-
         patient.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // 3. Refresh OTP and Expiry
+        // Generate OTP
         String otp = String.valueOf((int)(Math.random() * 900000) + 100000);
         patient.setVerified(false);
         patient.setVerificationCode(otp);
         patient.setVerificationExpiry(new Date(System.currentTimeMillis() + 5 * 60 * 1000));
 
-        // 4. Send Email
+        patientRepository.save(patient);
+
+        // Send OTP email
         emailService.sendOtp(patient.getEmail(), otp);
 
-        // 5. Save (Update or Insert)
-        return patientRepository.save(patient);
+        return patient;
     }
 
     // ================= LOGIN =================
     public Patient loginPatient(String email, String password) {
 
-        Optional<Patient> optional =
-                patientRepository.findByEmail(email);
-
+        Optional<Patient> optional = patientRepository.findByEmail(email);
         if (optional.isPresent()) {
             Patient patient = optional.get();
-
             if (!patient.isVerified()) {
                 throw new RuntimeException("Please verify your email first.");
             }
-
-            if (passwordEncoder.matches(password,
-                    patient.getPassword())) {
+            if (passwordEncoder.matches(password, patient.getPassword())) {
                 return patient;
             }
         }
-
         return null;
     }
 
     // ================= VERIFY OTP =================
     public String verifyOtp(String email, String otp) {
 
-        Optional<Patient> optional =
-                patientRepository.findByEmail(email);
-
-        if (optional.isEmpty()) {
-            return "Patient not found";
-        }
+        Optional<Patient> optional = patientRepository.findByEmail(email);
+        if (optional.isEmpty()) return "Patient not found";
 
         Patient patient = optional.get();
 
-        if (patient.isVerified()) {
-            return "Already verified";
-        }
-
-        if (patient.getVerificationCode() == null ||
-                !patient.getVerificationCode().equals(otp)) {
-
+        if (patient.isVerified()) return "Already verified";
+        if (patient.getVerificationCode() == null || !patient.getVerificationCode().equals(otp))
             return "Invalid OTP";
-        }
-
-        if (patient.getVerificationExpiry() == null ||
-                patient.getVerificationExpiry().before(new Date())) {
-
+        if (patient.getVerificationExpiry() == null || patient.getVerificationExpiry().before(new Date()))
             return "OTP expired";
-        }
 
         patient.setVerified(true);
         patient.setVerificationCode(null);
@@ -127,17 +104,60 @@ public class PatientService {
 
         return "Email verified successfully";
     }
-    // Add these methods inside PatientService class
 
+    // ================= FORGOT PASSWORD =================
+    public boolean sendPasswordResetEmail(String email) {
+
+        Optional<Patient> optional = patientRepository.findByEmail(email);
+        if (optional.isEmpty()) return false;
+
+        Patient patient = optional.get();
+
+        // Generate secure reset token
+        String token = UUID.randomUUID().toString();
+        patient.setResetToken(token);
+        patient.setResetTokenExpiry(LocalDateTime.now().plusMinutes(30)); // use LocalDateTime
+
+        patientRepository.save(patient);
+
+        // Send reset email
+        emailService.sendPasswordResetEmail(patient.getEmail(), token);
+
+        return true;
+    }
+
+    // ================= RESET PASSWORD =================
+    public boolean resetPassword(String token, String newPassword) {
+
+        Optional<Patient> optional = patientRepository.findByResetToken(token);
+        if (optional.isEmpty()) return false;
+
+        Patient patient = optional.get();
+
+        if (patient.getResetTokenExpiry() == null ||
+                patient.getResetTokenExpiry().isBefore(LocalDateTime.now()))
+            return false;
+
+        patient.setPassword(passwordEncoder.encode(newPassword));
+        patient.setResetToken(null);
+        patient.setResetTokenExpiry(null);
+
+        patientRepository.save(patient);
+
+        return true;
+    }
+
+    // ================= GET PROFILE =================
     public Patient getPatientById(String id) {
         return patientRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
     }
 
+    // ================= UPDATE PROFILE =================
     public Patient updatePatient(String id, Patient updatedData) {
+
         Patient existing = getPatientById(id);
 
-        // Update fields
         existing.setTitle(updatedData.getTitle());
         existing.setFirstName(updatedData.getFirstName());
         existing.setLastName(updatedData.getLastName());
@@ -149,5 +169,4 @@ public class PatientService {
 
         return patientRepository.save(existing);
     }
-
 }

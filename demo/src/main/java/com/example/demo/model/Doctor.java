@@ -3,11 +3,13 @@ package com.example.demo.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Date;
+import java.time.LocalDateTime;
 
 @Document(collection = "doctors")
 public class Doctor {
 
     @Id
+
     private String id;
 
     private String title;
@@ -23,7 +25,11 @@ public class Doctor {
 
     private boolean verified;
     private String verificationCode;
-    private Date verificationExpiry;   
+    private Date verificationExpiry;
+
+    // Password reset
+    private String resetToken;
+    private LocalDateTime resetTokenExpiry;
 
 
     public Doctor() {}
@@ -40,7 +46,9 @@ public class Doctor {
         this.medicalLicenseNumber = medicalLicenseNumber;
         this.email = email;
         this.password = password;
+        this.verified = false;
     }
+
 
     // ========================
     // Getters and Setters
@@ -143,4 +151,11 @@ public class Doctor {
     }
     public String getProfileImage() { return profileImage; }
     public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
+
+
+    public String getResetToken() { return resetToken; }
+    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
+
+    public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
 }
