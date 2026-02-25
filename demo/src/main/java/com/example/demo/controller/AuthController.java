@@ -195,15 +195,18 @@ public class AuthController {
                     "HOSPITAL"
             );
 
-            return ResponseEntity.ok(
-                    new LoginResponse(
-                            "Login Successful",
-                            "HOSPITAL",
-                            hospital.getId(),
-                            hospital.getName(),
-                            token
-                    )
+            LoginResponse response = new LoginResponse(
+                    "Login Successful",
+                    "HOSPITAL",
+                    hospital.getId(),
+                    hospital.getName(),
+                    token
             );
+
+            // IMPORTANT: Set the hospitalId separately
+            response.setHospitalId(hospital.getId());
+
+            return ResponseEntity.ok(response);
         }
 
         // DOCTOR

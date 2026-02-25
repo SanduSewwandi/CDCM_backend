@@ -61,4 +61,9 @@ public class HospitalService {
 
         return null;
     }
+    // Add this method to your HospitalService class
+    public Hospital getHospitalById(String hospitalId) {
+        return hospitalRepository.findById(hospitalId)
+                .orElseThrow(() -> new RuntimeException("Hospital not found with id: " + hospitalId));
+    }
 }

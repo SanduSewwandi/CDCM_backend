@@ -3,6 +3,9 @@ package com.example.demo.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Document(collection = "hospitals")
 public class Hospital {
 
@@ -11,18 +14,30 @@ public class Hospital {
 
     private String name;
     private String email;
-    private String password;
     private String contactNumber;
     private String address;
     private String licenseNumber;
     private String managerName;
+    private String password;
 
-    public Hospital() {}
+    // Store doctor IDs as references
+    private List<String> doctorIds = new ArrayList<>();
 
-    // ========================
+    // Constructors
+    public Hospital() {
+    }
+
+    public Hospital(String name, String email, String contactNumber,
+                    String address, String licenseNumber, String managerName) {
+        this.name = name;
+        this.email = email;
+        this.contactNumber = contactNumber;
+        this.address = address;
+        this.licenseNumber = licenseNumber;
+        this.managerName = managerName;
+    }
+
     // Getters and Setters
-    // ========================
-
     public String getId() {
         return id;
     }
@@ -45,14 +60,6 @@ public class Hospital {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public String getContactNumber() {
@@ -85,5 +92,21 @@ public class Hospital {
 
     public void setManagerName(String managerName) {
         this.managerName = managerName;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public List<String> getDoctorIds() {
+        return doctorIds;
+    }
+
+    public void setDoctorIds(List<String> doctorIds) {
+        this.doctorIds = doctorIds;
     }
 }

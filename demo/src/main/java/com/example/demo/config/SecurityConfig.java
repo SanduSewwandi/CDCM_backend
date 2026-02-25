@@ -9,9 +9,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.http.HttpMethod;
-
 
 import java.util.List;
 
@@ -29,21 +29,33 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> {})   // enable CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/register/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/upload", "/api/upload/**").permitAll()
+
+                        // Doctor endpoints - allow all GET requests
+                        .requestMatchers(HttpMethod.GET, "/api/doctors/**").permitAll()
+
+                        // Hospital endpoints - require authentication
+                        .requestMatchers(HttpMethod.GET, "/api/hospitals/*/doctors").hasAnyAuthority("HOSPITAL", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/hospitals/*/doctors/*").hasAnyAuthority("HOSPITAL", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/hospitals/*/doctors/*").hasAnyAuthority("HOSPITAL", "ADMIN")
+
+                        // Role-based endpoints
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
                         .requestMatchers("/api/doctor/**").hasAuthority("DOCTOR")
                         .requestMatchers("/api/patient/**").hasAuthority("PATIENT")
-                        .requestMatchers("/api/hospital/**").hasAuthority("HOSPITAL")
+
+                        // Test endpoint
+                        .requestMatchers("/api/test/**").permitAll()
 
                         .anyRequest().authenticated()
                 )
-
-                .addFilterBefore(jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -54,20 +66,16 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UrlBasedCorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(List.of("Authorization"));
 
-        CorsConfiguration config = new CorsConfiguration();
-
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-        source.registerCorsConfiguration("/**", config);
-
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 }

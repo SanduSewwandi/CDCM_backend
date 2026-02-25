@@ -1,16 +1,20 @@
 package com.example.demo.dto;
 
-public class LoginResponse {
+import com.fasterxml.jackson.annotation.JsonInclude;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class LoginResponse {
     private String message;
     private String role;
     private String userId;
     private String name;
     private String token;
 
+    // Hospital specific field
+    private String hospitalId;
 
-    public LoginResponse() {
-    }
+    // Constructors
+    public LoginResponse() {}
 
     public LoginResponse(String message, String role, String userId, String name, String token) {
         this.message = message;
@@ -20,10 +24,7 @@ public class LoginResponse {
         this.token = token;
     }
 
-    // ====================
-    // Getters & Setters
-    // ====================
-
+    // Getters and Setters
     public String getMessage() {
         return message;
     }
@@ -55,7 +56,20 @@ public class LoginResponse {
     public void setName(String name) {
         this.name = name;
     }
+
     public String getToken() {
         return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    public String getHospitalId() {
+        return hospitalId;
+    }
+
+    public void setHospitalId(String hospitalId) {
+        this.hospitalId = hospitalId;
     }
 }

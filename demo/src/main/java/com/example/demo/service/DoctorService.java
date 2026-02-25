@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.Optional;
+import java.util.List;
+
 
 @Service
 public class DoctorService {
@@ -154,6 +156,30 @@ public class DoctorService {
 
         return doctorRepository.save(existing);
     }
+    // Add these methods to your existing DoctorService class
+
+    public List<Doctor> searchByTerm(String searchTerm) {
+        return doctorRepository.findBySearchTerm(searchTerm);
+    }
+
+    public List<Doctor> searchByTermAndSpecialty(String searchTerm, String specialty) {
+        return doctorRepository.findBySearchTermAndSpecialty(searchTerm, specialty);
+    }
+
+    public List<Doctor> findBySpecialization(String specialization) {
+        return doctorRepository.findBySpecialization(specialization);
+    }
+
+    public List<Doctor> getAllDoctors() {
+        return doctorRepository.findAll();
+    }
+
+    public List<Doctor> getVerifiedDoctors() {
+        return doctorRepository.findByVerifiedTrue();
+    }
+
+
+
 }
 
 
