@@ -1,17 +1,18 @@
 package com.example.demo.service;
 
-
 import com.example.demo.dto.DoctorRegisterRequest;
+import com.example.demo.dto.DoctorAccountDTO;
 import com.example.demo.model.Doctor;
 import com.example.demo.repository.DoctorRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.Date;
-import com.example.demo.dto.DoctorAccountDTO;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class DoctorService {
@@ -28,28 +29,22 @@ public class DoctorService {
         this.emailService = emailService;
     }
 
-    // =========================
-    // REGISTER DOCTOR
-    // =========================
+    // ================= REGISTER =================
     public Doctor registerDoctor(DoctorRegisterRequest request) {
-        // 1. Check if the email already exists in the database
+
         Optional<Doctor> existingDoctor = doctorRepository.findByEmail(request.getEmail());
 
         Doctor doctor;
 
         if (existingDoctor.isPresent()) {
             doctor = existingDoctor.get();
-            // If already verified, don't let them register again
             if (doctor.isVerified()) {
                 throw new RuntimeException("Email is already registered and verified.");
             }
-            // If NOT verified, we will just update this existing object with new data
         } else {
-            // If it's a new email, create a new object
             doctor = new Doctor();
         }
 
-        // 2. Map fields (Same as your old code)
         doctor.setTitle(request.getTitle());
         doctor.setFirstName(request.getFirstName());
         doctor.setLastName(request.getLastName());
@@ -57,75 +52,51 @@ public class DoctorService {
         doctor.setSpecialization(request.getSpecialization());
         doctor.setMedicalLicenseNumber(request.getMedicalLicenseNumber());
         doctor.setEmail(request.getEmail());
-
         doctor.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // 3. Generate and set OTP
-        String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
+        // Generate OTP
+        String otp = String.valueOf((int)(Math.random() * 900000) + 100000);
         doctor.setVerified(false);
         doctor.setVerificationCode(otp);
         doctor.setVerificationExpiry(new Date(System.currentTimeMillis() + 5 * 60 * 1000));
 
-        // 4. Send Email
+        doctorRepository.save(doctor);
+
+        // Send OTP email
         emailService.sendOtp(doctor.getEmail(), otp);
 
-        // 5. Save (This will now "Update" if it existed or "Insert" if it's new)
-        return doctorRepository.save(doctor);
+        return doctor;
     }
 
-    // =========================
-    // LOGIN DOCTOR
-    // =========================
+    // ================= LOGIN =================
     public Doctor loginDoctor(String email, String password) {
 
-        Optional<Doctor> optional =
-                doctorRepository.findByEmail(email);
-
+        Optional<Doctor> optional = doctorRepository.findByEmail(email);
         if (optional.isPresent()) {
             Doctor doctor = optional.get();
-
             if (!doctor.isVerified()) {
                 throw new RuntimeException("Please verify your email first.");
             }
-
-            if (passwordEncoder.matches(password,
-                    doctor.getPassword())) {
+            if (passwordEncoder.matches(password, doctor.getPassword())) {
                 return doctor;
             }
         }
-
         return null;
     }
 
-    // =========================
-    // VERIFY OTP
-    // =========================
+    // ================= VERIFY OTP =================
     public String verifyOtp(String email, String otp) {
 
-        Optional<Doctor> optional =
-                doctorRepository.findByEmail(email);
-
-        if (optional.isEmpty()) {
-            return "Doctor not found";
-        }
+        Optional<Doctor> optional = doctorRepository.findByEmail(email);
+        if (optional.isEmpty()) return "Doctor not found";
 
         Doctor doctor = optional.get();
 
-        if (doctor.isVerified()) {
-            return "Already verified";
-        }
-
-        if (doctor.getVerificationCode() == null ||
-                !doctor.getVerificationCode().equals(otp)) {
-
+        if (doctor.isVerified()) return "Already verified";
+        if (doctor.getVerificationCode() == null || !doctor.getVerificationCode().equals(otp))
             return "Invalid OTP";
-        }
-
-        if (doctor.getVerificationExpiry() == null ||
-                doctor.getVerificationExpiry().before(new Date())) {
-
+        if (doctor.getVerificationExpiry() == null || doctor.getVerificationExpiry().before(new Date()))
             return "OTP expired";
-        }
 
         doctor.setVerified(true);
         doctor.setVerificationCode(null);
@@ -136,17 +107,56 @@ public class DoctorService {
         return "Email verified successfully";
     }
 
-    // Add these methods inside PatientService class
+    // ================= FORGOT PASSWORD =================
+    public boolean sendPasswordResetEmail(String email) {
 
+        Optional<Doctor> optional = doctorRepository.findByEmail(email);
+        if (optional.isEmpty()) return false;
+
+        Doctor doctor = optional.get();
+
+        String token = UUID.randomUUID().toString();
+        doctor.setResetToken(token);
+        doctor.setResetTokenExpiry(LocalDateTime.now().plusMinutes(30));
+
+        doctorRepository.save(doctor);
+
+        emailService.sendPasswordResetEmail(doctor.getEmail(), token);
+
+        return true;
+    }
+
+    // ================= RESET PASSWORD =================
+    public boolean resetPassword(String token, String newPassword) {
+
+        Optional<Doctor> optional = doctorRepository.findByResetToken(token);
+        if (optional.isEmpty()) return false;
+
+        Doctor doctor = optional.get();
+
+        if (doctor.getResetTokenExpiry() == null || doctor.getResetTokenExpiry().isBefore(LocalDateTime.now()))
+            return false;
+
+        doctor.setPassword(passwordEncoder.encode(newPassword));
+        doctor.setResetToken(null);
+        doctor.setResetTokenExpiry(null);
+
+        doctorRepository.save(doctor);
+
+        return true;
+    }
+
+    // ================= GET PROFILE =================
     public Doctor getDoctorById(String id) {
         return doctorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Doctor not found"));
     }
 
+    // ================= UPDATE PROFILE =================
     public Doctor updateDoctor(String id, Doctor updatedData) {
+
         Doctor existing = getDoctorById(id);
 
-        // Update fields
         existing.setTitle(updatedData.getTitle());
         existing.setFirstName(updatedData.getFirstName());
         existing.setLastName(updatedData.getLastName());
@@ -158,9 +168,7 @@ public class DoctorService {
         return doctorRepository.save(existing);
     }
 
-    // =========================
-// GET DOCTOR ACCOUNT DETAILS
-// =========================
+    // ================= GET ACCOUNT DETAILS =================
     public DoctorAccountDTO getDoctorAccount(String id) {
         Doctor doctor = getDoctorById(id);
 
@@ -173,25 +181,18 @@ public class DoctorService {
         return dto;
     }
 
-    // =========================
-// UPDATE DOCTOR ACCOUNT DETAILS
-// =========================
+    // ================= UPDATE ACCOUNT DETAILS =================
     @Transactional
     public DoctorAccountDTO updateDoctorAccount(String id, DoctorAccountDTO dto) {
         Doctor doctor = getDoctorById(id);
 
-        // update specialization (specialty)
         doctor.setSpecialization(dto.getSpecialization());
-
-        // update experience
         doctor.setExperience(dto.getExperience());
 
-        // update qualifications list safely
         if (doctor.getQualifications() == null) doctor.setQualifications(new ArrayList<>());
         doctor.getQualifications().clear();
         if (dto.getQualifications() != null) doctor.getQualifications().addAll(dto.getQualifications());
 
-        // update hospitals list safely
         if (doctor.getHospitals() == null) doctor.setHospitals(new ArrayList<>());
         doctor.getHospitals().clear();
         if (dto.getHospitals() != null) doctor.getHospitals().addAll(dto.getHospitals());
@@ -200,5 +201,4 @@ public class DoctorService {
 
         return getDoctorAccount(id);
     }
-
 }
