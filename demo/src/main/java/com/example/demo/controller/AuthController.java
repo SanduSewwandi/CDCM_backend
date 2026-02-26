@@ -257,9 +257,35 @@ public class AuthController {
     // FORGOT PASSWORD
     // =========================
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
+    public ResponseEntity<?> forgotPassword(
+            @RequestParam String email,
+            @RequestParam String role) {
+
         try {
-            boolean sent = patientService.sendPasswordResetEmail(email);
+
+            boolean sent = false;
+
+            switch (role.toUpperCase()) {
+
+                case "PATIENT":
+                    sent = patientService.sendPasswordResetEmail(email);
+                    break;
+
+                case "DOCTOR":
+                    sent = doctorService.sendPasswordResetEmail(email);
+                    break;
+
+                case "HOSPITAL":
+                    sent = hospitalService.sendPasswordResetEmail(email);
+                    break;
+
+                default:
+                    return ResponseEntity.badRequest()
+                            .body(java.util.Collections.singletonMap(
+                                    "message",
+                                    "Invalid role"
+                            ));
+            }
 
             if (sent) {
                 return ResponseEntity.ok(
@@ -291,12 +317,31 @@ public class AuthController {
 
         String token = request.get("token");
         String newPassword = request.get("newPassword");
+        String role = request.get("role");
 
-        if (token == null || newPassword == null) {
-            return ResponseEntity.badRequest().body("Token and password required");
+        if (token == null || newPassword == null || role == null) {
+            return ResponseEntity.badRequest().body("Token, password and role required");
         }
 
-        boolean success = patientService.resetPassword(token.trim(), newPassword);
+        boolean success = false;
+
+        switch (role.toUpperCase()) {
+
+            case "PATIENT":
+                success = patientService.resetPassword(token.trim(), newPassword);
+                break;
+
+            case "DOCTOR":
+                success = doctorService.resetPassword(token.trim(), newPassword);
+                break;
+
+            case "HOSPITAL":
+                success = hospitalService.resetPassword(token.trim(), newPassword);
+                break;
+
+            default:
+                return ResponseEntity.badRequest().body("Invalid role");
+        }
 
         if (success) {
             return ResponseEntity.ok("Password reset successful");
