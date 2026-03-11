@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
-
+import java.util.List;
 @Service
 public class DoctorService {
 
@@ -200,5 +200,61 @@ public class DoctorService {
         doctorRepository.save(doctor);
 
         return getDoctorAccount(id);
+    }
+
+    // ================= SEARCH DOCTORS =================
+    public List<Doctor> searchDoctors(String keyword) {
+
+        if (keyword == null || keyword.isBlank()) {
+            return doctorRepository.findAll();
+        }
+
+        List<Doctor> byName =
+                doctorRepository.findByFirstNameContainingIgnoreCase(keyword);
+
+        List<Doctor> bySpecialization =
+                doctorRepository.findBySpecializationContainingIgnoreCase(keyword);
+
+        // Merge results without duplicates
+        byName.addAll(bySpecialization);
+
+        return byName.stream().distinct().toList();
+    }
+
+    // ================= ASSIGN DOCTOR TO HOSPITAL =================
+    public Doctor assignDoctorToHospital(String doctorId, String hospitalId) {
+
+        Doctor doctor = getDoctorById(doctorId);
+
+        if (doctor.getHospitals() == null) {
+            doctor.setHospitals(new ArrayList<>());
+        }
+
+        if (!doctor.getHospitals().contains(hospitalId)) {
+            doctor.getHospitals().add(hospitalId);
+        }
+
+        return doctorRepository.save(doctor);
+    }
+
+    // ================= GET DOCTORS BY HOSPITAL =================
+    public List<Doctor> getDoctorsByHospital(String hospitalId) {
+        return doctorRepository.findAll()
+                .stream()
+                .filter(d -> d.getHospitals() != null &&
+                        d.getHospitals().contains(hospitalId))
+                .toList();
+    }
+
+    public Doctor removeDoctorFromHospital(String doctorId, String hospitalId) {
+
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+
+        if (doctor.getHospitals() != null) {
+            doctor.getHospitals().remove(hospitalId);
+        }
+
+        return doctorRepository.save(doctor);
     }
 }
