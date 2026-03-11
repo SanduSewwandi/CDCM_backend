@@ -41,4 +41,13 @@ public class HospitalDoctorController {
     ) {
         return doctorService.getDoctorsByHospital(hospitalId);
     }
+    // ⭐ ADD THIS METHOD
+    @DeleteMapping("/{doctorId}/remove/{hospitalId}")
+    public Doctor removeDoctorFromHospital(
+            @PathVariable String doctorId,
+            @PathVariable String hospitalId
+    ) {
+        return doctorService.removeDoctorFromHospital(doctorId, hospitalId);
+    }
+
 }

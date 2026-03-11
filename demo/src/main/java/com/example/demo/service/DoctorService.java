@@ -245,4 +245,16 @@ public class DoctorService {
                         d.getHospitals().contains(hospitalId))
                 .toList();
     }
+
+    public Doctor removeDoctorFromHospital(String doctorId, String hospitalId) {
+
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+
+        if (doctor.getHospitals() != null) {
+            doctor.getHospitals().remove(hospitalId);
+        }
+
+        return doctorRepository.save(doctor);
+    }
 }
