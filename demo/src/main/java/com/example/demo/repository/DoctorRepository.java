@@ -10,4 +10,5 @@ public interface DoctorRepository extends MongoRepository<Doctor, String> {
     Optional<Doctor> findByResetToken(String resetToken);
     List<Doctor> findBySpecializationContainingIgnoreCase(String specialization);
     List<Doctor> findByFirstNameContainingIgnoreCase(String firstName);
+    List<Doctor> findByHospitalsIsNotEmpty();
 }
