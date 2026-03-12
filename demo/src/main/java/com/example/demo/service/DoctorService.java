@@ -257,4 +257,22 @@ public class DoctorService {
 
         return doctorRepository.save(doctor);
     }
+    public List<Doctor> getAllAssignedDoctors() {
+        try {
+            // Fetch all doctors and filter manually to ensure we handle nulls/empty lists correctly
+            return doctorRepository.findAll().stream()
+                    .filter(d -> d.getHospitals() != null && !d.getHospitals().isEmpty())
+                    .toList();
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    public List<String> getUniqueSpecializations() {
+        return doctorRepository.findAll().stream()
+                .map(Doctor::getSpecialization)
+                .filter(s -> s != null && !s.isBlank())
+                .distinct()
+                .toList();
+    }
 }

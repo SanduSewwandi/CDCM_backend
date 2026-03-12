@@ -37,7 +37,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
                         .requestMatchers("/api/doctor/**").hasAuthority("DOCTOR")
                         .requestMatchers("/api/patient/**").hasAuthority("PATIENT")
-                        .requestMatchers("/api/hospital/**").hasAuthority("HOSPITAL")
+                        .requestMatchers("/api/hospital/**").permitAll()
+                        .requestMatchers("/api/hospital/doctors/assigned-all").permitAll()
 
                         .anyRequest().authenticated()
                 )
