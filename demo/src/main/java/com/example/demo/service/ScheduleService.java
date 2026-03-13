@@ -2,7 +2,9 @@ package com.example.demo.service;
 
 import com.example.demo.dto.ScheduleRequest;
 import com.example.demo.model.Schedule;
+import com.example.demo.model.Doctor;
 import com.example.demo.repository.ScheduleRepository;
+import com.example.demo.repository.DoctorRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,12 +13,14 @@ import java.util.List;
 public class ScheduleService {
 
     private final ScheduleRepository scheduleRepository;
+    private final DoctorRepository doctorRepository;
 
-    public ScheduleService(ScheduleRepository scheduleRepository) {
+    public ScheduleService(ScheduleRepository scheduleRepository, DoctorRepository doctorRepository) {
         this.scheduleRepository = scheduleRepository;
+        this.doctorRepository = doctorRepository;
     }
 
-    // Hospital creates schedule
+    // Hospital creates a schedule
     public Schedule createSchedule(ScheduleRequest request) {
         Schedule schedule = new Schedule();
 
@@ -31,9 +35,11 @@ public class ScheduleService {
         return scheduleRepository.save(schedule);
     }
 
-    // Doctor schedules
+    // Get schedules for a doctor
     public List<Schedule> getDoctorSchedules(String doctorId) {
-        return scheduleRepository.findByDoctorId(doctorId);
+        List<Schedule> schedules = scheduleRepository.findByDoctorId(doctorId);
+        populateDoctorInfo(schedules);
+        return schedules;
     }
 
     // Accept schedule
@@ -50,13 +56,28 @@ public class ScheduleService {
         return scheduleRepository.save(schedule);
     }
 
-    // Hospital schedules (all dates)
+    // Get all schedules for a hospital
     public List<Schedule> getHospitalSchedules(String hospitalId) {
-        return scheduleRepository.findByHospitalId(hospitalId);
+        List<Schedule> schedules = scheduleRepository.findByHospitalId(hospitalId);
+        populateDoctorInfo(schedules);
+        return schedules;
     }
 
-    // Hospital schedules filtered by date
+    // Get schedules for a hospital filtered by date
     public List<Schedule> getHospitalSchedulesByDate(String hospitalId, String date) {
-        return scheduleRepository.findByHospitalIdAndDate(hospitalId, date);
+        List<Schedule> schedules = scheduleRepository.findByHospitalIdAndDate(hospitalId, date);
+        populateDoctorInfo(schedules);
+        return schedules;
+    }
+
+    // Helper method to add doctor name and specialty
+    private void populateDoctorInfo(List<Schedule> schedules) {
+        for (Schedule s : schedules) {
+            Doctor d = doctorRepository.findById(s.getDoctorId()).orElse(null);
+            if (d != null) {
+                s.setDoctorName("Dr. " + d.getFirstName() + " " + d.getLastName());
+                s.setSpecialty(d.getSpecialization());
+            }
+        }
     }
 }
