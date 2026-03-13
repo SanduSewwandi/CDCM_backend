@@ -185,5 +185,9 @@ public class Doctor {
     public void setHospitals(List<String> hospitals) {
         this.hospitals = hospitals;
     }
+
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
 }
 
