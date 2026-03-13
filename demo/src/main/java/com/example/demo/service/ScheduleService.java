@@ -18,7 +18,6 @@ public class ScheduleService {
 
     // Hospital creates schedule
     public Schedule createSchedule(ScheduleRequest request) {
-
         Schedule schedule = new Schedule();
 
         schedule.setDoctorId(request.getDoctorId());
@@ -37,21 +36,27 @@ public class ScheduleService {
         return scheduleRepository.findByDoctorId(doctorId);
     }
 
-    // Accept
+    // Accept schedule
     public Schedule acceptSchedule(String id) {
         Schedule schedule = scheduleRepository.findById(id).orElseThrow();
         schedule.setStatus("ACCEPTED");
         return scheduleRepository.save(schedule);
     }
 
-    // Reject
+    // Reject schedule
     public Schedule rejectSchedule(String id) {
         Schedule schedule = scheduleRepository.findById(id).orElseThrow();
         schedule.setStatus("REJECTED");
         return scheduleRepository.save(schedule);
     }
 
+    // Hospital schedules (all dates)
     public List<Schedule> getHospitalSchedules(String hospitalId) {
         return scheduleRepository.findByHospitalId(hospitalId);
+    }
+
+    // Hospital schedules filtered by date
+    public List<Schedule> getHospitalSchedulesByDate(String hospitalId, String date) {
+        return scheduleRepository.findByHospitalIdAndDate(hospitalId, date);
     }
 }

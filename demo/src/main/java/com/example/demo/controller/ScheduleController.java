@@ -23,12 +23,19 @@ public class ScheduleController {
     public Schedule createSchedule(@RequestBody ScheduleRequest request) {
         return scheduleService.createSchedule(request);
     }
-    //  Hospital view schedules
-    @GetMapping("/hospital/{hospitalId}")
-    public List<Schedule> getHospitalSchedules(@PathVariable String hospitalId) {
-        return scheduleService.getHospitalSchedules(hospitalId);
-    }
 
+    // Hospital view schedules with optional date filter
+    @GetMapping("/hospital/{hospitalId}")
+    public List<Schedule> getHospitalSchedules(
+            @PathVariable String hospitalId,
+            @RequestParam(required = false) String date // optional date query param
+    ) {
+        if (date != null && !date.isEmpty()) {
+            return scheduleService.getHospitalSchedulesByDate(hospitalId, date);
+        } else {
+            return scheduleService.getHospitalSchedules(hospitalId);
+        }
+    }
 
     // Doctor view schedules
     @GetMapping("/doctor/{doctorId}")
