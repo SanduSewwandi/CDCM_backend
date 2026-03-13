@@ -9,5 +9,6 @@ public interface ScheduleRepository extends MongoRepository<Schedule, String> {
 
     List<Schedule> findByDoctorId(String doctorId);
     List<Schedule> findByHospitalId(String hospitalId);
+    List<Schedule> findByHospitalIdAndDate(String hospitalId, String date);
 
 }
