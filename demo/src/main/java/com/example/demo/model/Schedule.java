@@ -11,6 +11,8 @@ public class Schedule {
 
     private String doctorId;
     private String hospitalId;
+    private String hospitalName;      // Populated dynamically
+    private String hospitalLocation;  // Populated dynamically
 
     private String date;
     private String startTime;
@@ -18,15 +20,11 @@ public class Schedule {
 
     private String status; // PENDING, ACCEPTED, REJECTED
 
-    // ✨ Additional fields for frontend display
     private String doctorName;
     private String specialty;
 
-    // Default Constructor
-    public Schedule() {
-    }
+    public Schedule() {}
 
-    // Parameterized Constructor
     public Schedule(String doctorId, String hospitalId, String date, String startTime, String endTime, String status) {
         this.doctorId = doctorId;
         this.hospitalId = hospitalId;
@@ -36,8 +34,7 @@ public class Schedule {
         this.status = status;
     }
 
-    // --- Existing Getters and Setters ---
-
+    // --- Getters and Setters ---
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -46,6 +43,12 @@ public class Schedule {
 
     public String getHospitalId() { return hospitalId; }
     public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
+
+    public String getHospitalName() { return hospitalName; }
+    public void setHospitalName(String hospitalName) { this.hospitalName = hospitalName; }
+
+    public String getHospitalLocation() { return hospitalLocation; }
+    public void setHospitalLocation(String hospitalLocation) { this.hospitalLocation = hospitalLocation; }
 
     public String getDate() { return date; }
     public void setDate(String date) { this.date = date; }
@@ -58,8 +61,6 @@ public class Schedule {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-
-    // --- New Getters and Setters for Doctor Info ---
 
     public String getDoctorName() { return doctorName; }
     public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
