@@ -19,6 +19,7 @@ public class Hospital {
     private String address;
     private String licenseNumber;
     private String managerName;
+    private String location;
 
     // Password reset
     private String resetToken;
@@ -100,4 +101,12 @@ public class Hospital {
 
     public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
     public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
+
+    public String getLocation() {   // <-- Add this getter
+        return location;
+    }
+
+    public void setLocation(String location) {  // <-- Add this setter
+        this.location = location;
+    }
 }
