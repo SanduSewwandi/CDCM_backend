@@ -6,6 +6,9 @@ import com.example.demo.service.DoctorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth/doctors")
 @CrossOrigin(origins = "http://localhost:5173")
@@ -47,5 +50,37 @@ public class DoctorController {
             @RequestBody DoctorAccountDTO dto
     ) {
         return ResponseEntity.ok(doctorService.updateDoctorAccount(id, dto));
+    }
+
+    // =========================
+    // GET all doctors (simplified)
+    // =========================
+    @GetMapping
+    public ResponseEntity<List<Map<String, String>>> getAllDoctors() {
+        List<Doctor> doctors = doctorService.getAllDoctors();
+
+        List<Map<String, String>> response = doctors.stream().map(d -> Map.of(
+                "id", d.getId(),
+                "fullName", d.getFirstName() + " " + d.getLastName(),
+                "specialization", d.getSpecialization()
+        )).toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+    // =========================
+    // GET doctors by hospital (simplified)
+    // =========================
+    @GetMapping("/hospital/{hospitalId}")
+    public ResponseEntity<List<Map<String, String>>> getDoctorsByHospital(@PathVariable String hospitalId) {
+        List<Doctor> doctors = doctorService.getDoctorsByHospital(hospitalId);
+
+        List<Map<String, String>> response = doctors.stream().map(d -> Map.of(
+                "id", d.getId(),
+                "fullName", d.getFirstName() + " " + d.getLastName(),
+                "specialization", d.getSpecialization()
+        )).toList();
+
+        return ResponseEntity.ok(response);
     }
 }

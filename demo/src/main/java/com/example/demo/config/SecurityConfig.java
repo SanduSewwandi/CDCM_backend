@@ -39,6 +39,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/patient/**").hasAuthority("PATIENT")
                         .requestMatchers("/api/hospital/**").permitAll()
                         .requestMatchers("/api/hospital/doctors/assigned-all").permitAll()
+                        // SCHEDULE APIs ✅ FIX
+                        .requestMatchers("/api/schedules/**").permitAll()
 
                         .anyRequest().authenticated()
                 )

@@ -275,4 +275,11 @@ public class DoctorService {
                 .distinct()
                 .toList();
     }
+
+    // ================= GET ALL DOCTORS (FOR FRONTEND) =================
+    public List<Doctor> getAllDoctors() {
+        return doctorRepository.findAll();
+    }
+
+
 }
