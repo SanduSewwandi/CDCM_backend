@@ -113,4 +113,8 @@ public class HospitalService {
     public List<Hospital> getAllHospitals() {
         return hospitalRepository.findAll();
     }
+
+    public Hospital getHospitalById(String id) {
+        return hospitalRepository.findById(id).orElse(null);
+    }
 }
