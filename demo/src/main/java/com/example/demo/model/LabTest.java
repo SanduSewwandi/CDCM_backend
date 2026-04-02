@@ -22,8 +22,11 @@ public class LabTest {
     private LocalDate testDate;
     private LocalDate requestedDate;
 
-    private String status;         // Pending, In Progress, Completed
-    private String reportStatus;   // Pending, Uploaded
+    private String status;
+    private String reportStatus;
+
+    private boolean isPaid;
+    private LocalDateTime paidAt;
 
     private String reportUrl;
     private String reportText;
@@ -34,6 +37,7 @@ public class LabTest {
     public LabTest() {
         this.status = "Pending";
         this.reportStatus = "Pending";
+        this.isPaid = false;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -105,7 +109,7 @@ public class LabTest {
         touch();
     }
 
-    // ---------------- STATUS ----------------
+    //STATUS
     public String getStatus() {
         return status;
     }
@@ -128,6 +132,24 @@ public class LabTest {
         }
     }
 
+    public boolean isPaid() {
+        return isPaid;
+    }
+
+    public void setPaid(boolean paid) {
+        this.isPaid = paid;
+        touch();
+    }
+
+    public LocalDateTime getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(LocalDateTime paidAt) {
+        this.paidAt = paidAt;
+        touch();
+    }
+
     public String getReportUrl() {
         return reportUrl;
     }
@@ -137,7 +159,7 @@ public class LabTest {
         touch();
     }
 
-    // ---------------- REPORT TEXT ----------------
+    //REPORT TEXT
     public String getReportText() {
         return reportText;
     }
@@ -147,7 +169,6 @@ public class LabTest {
         touch();
     }
 
-    // ---------------- TIMESTAMPS ----------------
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
