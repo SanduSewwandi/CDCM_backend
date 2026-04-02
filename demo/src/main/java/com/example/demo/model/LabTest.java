@@ -9,11 +9,12 @@ import java.time.LocalDateTime;
 @Document(collection = "lab_tests")
 public class LabTest {
 
+
     @Id
     private String id;
 
-    private String patientId;   // link to Patient
-    private String hospitalId;  // 🔹 NEW (important for filtering)
+    private String patientId;
+    private String hospitalId;
 
     private String testType;
     private double price;
@@ -21,27 +22,26 @@ public class LabTest {
     private LocalDate testDate;
     private LocalDate requestedDate;
 
-    // 🔹 STATUS WORKFLOW
-    private String status; // Pending, In Progress, Completed
+    private String status;         // Pending, In Progress, Completed
+    private String reportStatus;   // Pending, Uploaded
 
-    // 🔹 REPORT DETAILS
     private String reportUrl;
     private String reportText;
-    private String reportStatus; // Pending / Uploaded
 
-    // 🔹 TRACKING
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // ================= CONSTRUCTOR =================
     public LabTest() {
-        this.status = "Pending";          // default
-        this.reportStatus = "Pending";    // default
+        this.status = "Pending";
+        this.reportStatus = "Pending";
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
-    // ================= GETTERS & SETTERS =================
+    private void touch() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
 
     public String getId() {
         return id;
@@ -57,6 +57,7 @@ public class LabTest {
 
     public void setPatientId(String patientId) {
         this.patientId = patientId;
+        touch();
     }
 
     public String getHospitalId() {
@@ -65,6 +66,7 @@ public class LabTest {
 
     public void setHospitalId(String hospitalId) {
         this.hospitalId = hospitalId;
+        touch();
     }
 
     public String getTestType() {
@@ -73,6 +75,7 @@ public class LabTest {
 
     public void setTestType(String testType) {
         this.testType = testType;
+        touch();
     }
 
     public double getPrice() {
@@ -81,6 +84,7 @@ public class LabTest {
 
     public void setPrice(double price) {
         this.price = price;
+        touch();
     }
 
     public LocalDate getTestDate() {
@@ -89,6 +93,7 @@ public class LabTest {
 
     public void setTestDate(LocalDate testDate) {
         this.testDate = testDate;
+        touch();
     }
 
     public LocalDate getRequestedDate() {
@@ -97,15 +102,30 @@ public class LabTest {
 
     public void setRequestedDate(LocalDate requestedDate) {
         this.requestedDate = requestedDate;
+        touch();
     }
 
+    // ---------------- STATUS ----------------
     public String getStatus() {
         return status;
     }
 
     public void setStatus(String status) {
-        this.status = status;
-        this.updatedAt = LocalDateTime.now(); // 🔹 auto update
+        if (status != null) {
+            this.status = status;
+            touch();
+        }
+    }
+
+    public String getReportStatus() {
+        return reportStatus;
+    }
+
+    public void setReportStatus(String reportStatus) {
+        if (reportStatus != null) {
+            this.reportStatus = reportStatus;
+            touch();
+        }
     }
 
     public String getReportUrl() {
@@ -114,27 +134,20 @@ public class LabTest {
 
     public void setReportUrl(String reportUrl) {
         this.reportUrl = reportUrl;
-        this.updatedAt = LocalDateTime.now();
+        touch();
     }
 
+    // ---------------- REPORT TEXT ----------------
     public String getReportText() {
         return reportText;
     }
 
     public void setReportText(String reportText) {
         this.reportText = reportText;
-        this.updatedAt = LocalDateTime.now();
+        touch();
     }
 
-    public String getReportStatus() {
-        return reportStatus;
-    }
-
-    public void setReportStatus(String reportStatus) {
-        this.reportStatus = reportStatus;
-        this.updatedAt = LocalDateTime.now();
-    }
-
+    // ---------------- TIMESTAMPS ----------------
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }

@@ -1,10 +1,13 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.LabTestRequest;
+import com.example.demo.dto.ReportUploadRequest;
 import com.example.demo.model.LabTest;
 import com.example.demo.model.Patient;
 import com.example.demo.repository.LabTestRepository;
 import com.example.demo.repository.PatientRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,16 +26,13 @@ public class LabController {
         this.patientRepository = patientRepository;
     }
 
-    // Get all patients (dropdown)
     @GetMapping("/patients")
     public List<Patient> getPatients() {
         return patientRepository.findAll();
     }
 
-    // Add lab test (DEFAULT STATUS)
     @PostMapping("/add")
     public LabTest addLabTest(@RequestBody LabTestRequest request) {
-
         LabTest test = new LabTest();
         test.setPatientId(request.getPatientId());
         test.setTestType(request.getTestType());
@@ -40,99 +40,90 @@ public class LabController {
         test.setTestDate(request.getTestDate());
         test.setRequestedDate(request.getRequestedDate());
 
-        // DEFAULT VALUES
         test.setStatus("Pending");
         test.setReportStatus("Pending");
 
         return labTestRepository.save(test);
     }
 
-    // Get all lab tests
     @GetMapping("/all")
     public List<LabTest> getAllTests() {
         return labTestRepository.findAll();
     }
 
-    // Get single test
     @GetMapping("/{id}")
-    public LabTest getTest(@PathVariable String id) {
+    public ResponseEntity<?> getTest(@PathVariable String id) {
         return labTestRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Test not found"));
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
-    // UPDATE TEST WITH WORKFLOW RULES
+    // update test(General updates & manual status changes)
     @PutMapping("/update/{id}")
-    public LabTest updateTest(@PathVariable String id,
-                              @RequestBody LabTestRequest request) {
+    public ResponseEntity<?> updateTest(@PathVariable String id,
+                                        @RequestBody LabTestRequest request) {
+        try {
+            LabTest test = labTestRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Test not found"));
 
-        LabTest test = labTestRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Test not found"));
+            if (request.getTestType() != null) test.setTestType(request.getTestType());
+            if (request.getTestDate() != null) test.setTestDate(request.getTestDate());
+            if (request.getRequestedDate() != null) test.setRequestedDate(request.getRequestedDate());
 
-        // Update basic fields
-        if (request.getTestType() != null)
-            test.setTestType(request.getTestType());
+            if (request.getStatus() != null) {
+                String current = test.getStatus();
+                String next = request.getStatus();
 
-        if (request.getTestDate() != null)
-            test.setTestDate(request.getTestDate());
-
-        if (request.getRequestedDate() != null)
-            test.setRequestedDate(request.getRequestedDate());
-
-        // STATUS WORKFLOW LOGIC
-        if (request.getStatus() != null) {
-
-            String current = test.getStatus();
-            String next = request.getStatus();
-
-            // 🔹 Pending → In Progress
-            if (current.equals("Pending") && next.equals("In Progress")) {
-                test.setStatus("In Progress");
-
-                // 🔹 In Progress → Completed (ONLY if report exists)
-            } else if (current.equals("In Progress") && next.equals("Completed")) {
-
-                if (test.getReportUrl() == null && test.getReportText() == null) {
-                    throw new RuntimeException("Cannot complete test without report");
+                if ("Pending".equals(current) && "In Progress".equals(next)) {
+                    test.setStatus("In Progress");
+                } else if ("In Progress".equals(current) && "Completed".equals(next)) {
+                    if (test.getReportUrl() == null && test.getReportText() == null) {
+                        return ResponseEntity.badRequest().body("Cannot mark Completed without report findings.");
+                    }
+                    test.setStatus("Completed");
+                } else if (!current.equals(next)) {
+                    return ResponseEntity.badRequest().body("Invalid status transition from " + current + " to " + next);
                 }
-
-                test.setStatus("Completed");
-
-            } else {
-                throw new RuntimeException("Invalid status transition");
             }
-        }
 
-        return labTestRepository.save(test);
+            return ResponseEntity.ok(labTestRepository.save(test));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
     }
 
-    // DELETE
+    // delete test
     @DeleteMapping("/delete/{id}")
     public void deleteTest(@PathVariable String id) {
         labTestRepository.deleteById(id);
     }
 
-    // UPLOAD REPORT + AUTO COMPLETE
+    // upload report
     @PutMapping("/upload-report/{id}")
-    public LabTest uploadReport(
-            @PathVariable String id,
-            @RequestBody LabTest request
-    ) {
-        LabTest test = labTestRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Test not found"));
+    public ResponseEntity<?> uploadReport(@PathVariable String id,
+                                          @RequestBody ReportUploadRequest request) {
+        try {
+            LabTest test = labTestRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Test not found with ID: " + id));
 
-        // ❗ Only allow upload when IN PROGRESS
-        if (!"In Progress".equals(test.getStatus())) {
-            throw new RuntimeException("Test must be In Progress to upload report");
+
+            if ("Completed".equals(test.getStatus())) {
+                // If already completed, we just update the report content
+                test.setReportUrl(request.getReportUrl());
+                test.setReportText(request.getReportText());
+            } else {
+                // Normal flow: set data and move to Completed
+                test.setReportUrl(request.getReportUrl());
+                test.setReportText(request.getReportText());
+                test.setReportStatus("Uploaded");
+                test.setStatus("Completed");
+            }
+
+            LabTest savedTest = labTestRepository.save(test);
+            return ResponseEntity.ok(savedTest);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
-
-        // Save report
-        test.setReportUrl(request.getReportUrl());
-        test.setReportText(request.getReportText());
-        test.setReportStatus("Uploaded");
-
-        // AUTO COMPLETE AFTER REPORT
-        test.setStatus("Completed");
-
-        return labTestRepository.save(test);
     }
 }

@@ -4,22 +4,24 @@ import java.time.LocalDate;
 
 public class LabTestRequest {
 
+
     private String patientId;
     private String testType;
     private double price;
     private LocalDate testDate;
     private LocalDate requestedDate;
 
-    // Only used for status update
+
     private String status;
 
-    // (OPTIONAL - for future use, not required now)
+
     private String reportUrl;
     private String reportText;
 
+
     public LabTestRequest() {}
 
-    // getters and setters
+
 
     public String getPatientId() {
         return patientId;
