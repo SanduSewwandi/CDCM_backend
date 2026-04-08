@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.AppointmentResponseDTO;
 import com.example.demo.model.Appointment;
 import com.example.demo.service.AppointmentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,5 +32,10 @@ public class AppointmentController {
     @GetMapping("/schedule/{scheduleId}")
     public List<Appointment> getScheduleAppointments(@PathVariable String scheduleId) {
         return appointmentService.getAppointmentsBySchedule(scheduleId);
+    }
+
+    @GetMapping("/doctor/{doctorId}")
+    public List<AppointmentResponseDTO> getDoctorAppointments(@PathVariable String doctorId) {
+        return appointmentService.getAppointmentsByDoctor(doctorId);
     }
 }
