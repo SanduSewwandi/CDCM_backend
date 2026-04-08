@@ -3,11 +3,13 @@ package com.example.demo.controller;
 import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
 import com.example.demo.service.DoctorService;
+import com.example.demo.service.HospitalService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.example.demo.service.HospitalService;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/hospital/doctors")
@@ -17,59 +19,105 @@ public class HospitalDoctorController {
     private final DoctorService doctorService;
     private final HospitalService hospitalService;
 
-    public HospitalDoctorController(DoctorService doctorService,HospitalService hospitalService) {
+    public HospitalDoctorController(DoctorService doctorService, HospitalService hospitalService) {
         this.doctorService = doctorService;
-        this.hospitalService=hospitalService;
+        this.hospitalService = hospitalService;
     }
 
-    // 🔎 Search all registered doctors
+    // 🔎 Search all registered doctors (optional keyword)
     @GetMapping("/search")
-    public List<Doctor> searchDoctors(
-            @RequestParam(required = false) String keyword
-    ) {
-        return doctorService.searchDoctors(keyword);
+    public ResponseEntity<List<Doctor>> searchDoctors(@RequestParam(required = false) String keyword) {
+        try {
+            List<Doctor> doctors = doctorService.searchDoctors(keyword);
+            return ResponseEntity.ok(doctors);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(Collections.emptyList());
+        }
     }
 
     // ➕ Assign doctor to hospital
     @PutMapping("/{doctorId}/assign/{hospitalId}")
-    public Doctor assignDoctor(
-            @PathVariable String doctorId,
-            @PathVariable String hospitalId
-    ) {
-        return doctorService.assignDoctorToHospital(doctorId, hospitalId);
+    public ResponseEntity<?> assignDoctor(@PathVariable String doctorId, @PathVariable String hospitalId) {
+        try {
+            Doctor assignedDoctor = doctorService.assignDoctorToHospital(doctorId, hospitalId);
+            if (assignedDoctor == null) {
+                return ResponseEntity.status(404)
+                        .body(Collections.singletonMap("message", "Doctor or Hospital not found"));
+            }
+            return ResponseEntity.ok(assignedDoctor);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(Collections.singletonMap("message", "Backend error: " + e.getMessage()));
+        }
     }
 
-    // 🏥 Get doctors of hospital
+    // 🏥 Get doctors of a specific hospital
     @GetMapping("/hospital/{hospitalId}")
-    public List<Doctor> getHospitalDoctors(
-            @PathVariable String hospitalId
-    ) {
-        return doctorService.getDoctorsByHospital(hospitalId);
-    }
-    // ⭐ ADD THIS METHOD
-    @DeleteMapping("/{doctorId}/remove/{hospitalId}")
-    public Doctor removeDoctorFromHospital(
-            @PathVariable String doctorId,
-            @PathVariable String hospitalId
-    ) {
-        return doctorService.removeDoctorFromHospital(doctorId, hospitalId);
+    public ResponseEntity<?> getHospitalDoctors(@PathVariable String hospitalId) {
+        try {
+            List<Doctor> doctors = doctorService.getDoctorsByHospital(hospitalId);
+            return ResponseEntity.ok(doctors);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(Collections.singletonMap("message", "Backend error: " + e.getMessage()));
+        }
     }
 
-    // File: sandusewwandi/cdcm_backend/.../controller/HospitalDoctorController.java
+    // ❌ Remove doctor from hospital
+    @DeleteMapping("/{doctorId}/remove/{hospitalId}")
+    public ResponseEntity<?> removeDoctorFromHospital(@PathVariable String doctorId, @PathVariable String hospitalId) {
+        try {
+            Doctor removedDoctor = doctorService.removeDoctorFromHospital(doctorId, hospitalId);
+            if (removedDoctor == null) {
+                return ResponseEntity.status(404)
+                        .body(Collections.singletonMap("message", "Doctor or Hospital not found"));
+            }
+            return ResponseEntity.ok(removedDoctor);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(Collections.singletonMap("message", "Backend error: " + e.getMessage()));
+        }
+    }
+
+    // 📋 Get all assigned doctors
     @GetMapping("/assigned-all")
     public ResponseEntity<List<Doctor>> getAllAssigned() {
-        List<Doctor> doctors = doctorService.getAllAssignedDoctors();
-        return ResponseEntity.ok(doctors); // Ensures a proper JSON response
+        try {
+            List<Doctor> doctors = doctorService.getAllAssignedDoctors();
+            return ResponseEntity.ok(doctors);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Collections.emptyList());
+        }
     }
 
+    // 🩺 Get all unique specializations
     @GetMapping("/specializations")
     public ResponseEntity<List<String>> getSpecializations() {
-        return ResponseEntity.ok(doctorService.getUniqueSpecializations());
+        try {
+            List<String> specializations = doctorService.getUniqueSpecializations();
+            return ResponseEntity.ok(specializations);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Collections.emptyList());
+        }
     }
 
+    // 🏥 Get all hospitals
     @GetMapping("/all-hospitals")
-    public ResponseEntity<List<Hospital>> getAllHospitals() {
-        return ResponseEntity.ok(hospitalService.getAllHospitals());
+    public ResponseEntity<?> getAllHospitals() {
+        try {
+            List<Hospital> hospitals = hospitalService.getAllHospitals();
+            return ResponseEntity.ok(hospitals);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(Collections.singletonMap("message", "Backend error: " + e.getMessage()));
+        }
     }
-
 }
