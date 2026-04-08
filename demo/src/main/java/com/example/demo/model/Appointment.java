@@ -17,7 +17,8 @@ public class Appointment {
 
     private String date;
     private String time;
-    private String status; // e.g., "CONFIRMED", "CANCELLED", "COMPLETED"
+    private String status;
+    private String patientName;// e.g., "CONFIRMED", "CANCELLED", "COMPLETED"
 
     public Appointment() {}
 
@@ -48,4 +49,7 @@ public class Appointment {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getPatientName() { return patientName; }
+    public void setPatientName(String patientName) { this.patientName = patientName; }
 }

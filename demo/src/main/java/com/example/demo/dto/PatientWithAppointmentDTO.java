@@ -4,7 +4,7 @@ import java.util.List;
 
 public class PatientWithAppointmentDTO {
     private String id;  // Actual MongoDB ID
-    private String patientId;  // Formatted ID like P-00001
+    private String patientId;
     private String patientName;
     private String email;
     private String contactNumber;
