@@ -78,6 +78,29 @@ public class ScheduleService {
         return scheduleRepository.save(schedule);
     }
 
+    public Schedule cancelSchedule(String id) {
+        try {
+            System.out.println("Cancel request received for schedule id: " + id);
+
+            Schedule schedule = scheduleRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
+
+            System.out.println("Schedule found. Current status: " + schedule.getStatus());
+
+            schedule.setStatus("CANCELLED");
+
+            Schedule updatedSchedule = scheduleRepository.save(schedule);
+
+            System.out.println("Schedule cancelled successfully. New status: " + updatedSchedule.getStatus());
+
+            return updatedSchedule;
+
+        } catch (Exception e) {
+            System.out.println("Error while cancelling schedule: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error while cancelling schedule: " + e.getMessage());
+        }
+    }
     // ----------------- HELPER METHOD -----------------
     /**
      * Populates doctorName, specialty, hospitalName, and hospitalLocation
