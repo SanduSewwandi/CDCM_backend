@@ -22,13 +22,21 @@ public class AppointmentController {
         return appointmentService.bookAppointment(appointment);
     }
 
+    @PostMapping("/auto-assign/{hospitalId}")
+    public List<Appointment> autoAssignNumbers(
+            @PathVariable String hospitalId,
+            @RequestParam String date
+    ) {
+        return appointmentService.autoAssignNumbers(hospitalId, date);
+    }
+
     // Triggered on the "My Appointments" page in the patient dashboard
     @GetMapping("/patient/{patientId}")
     public List<Appointment> getPatientAppointments(@PathVariable String patientId) {
         return appointmentService.getAppointmentsForPatient(patientId);
     }
 
-    // ✅ NEW ENDPOINT: Fetch booked numbers for the visual grid
+    //  Fetch booked numbers for the visual grid
     @GetMapping("/schedule/{scheduleId}")
     public List<Appointment> getScheduleAppointments(@PathVariable String scheduleId) {
         return appointmentService.getAppointmentsBySchedule(scheduleId);
@@ -43,4 +51,6 @@ public class AppointmentController {
     public List<AppointmentResponseDTO> getHospitalAppointments(@PathVariable String hospitalId) {
         return appointmentService.getAppointmentsByHospital(hospitalId);
     }
+
+
 }
