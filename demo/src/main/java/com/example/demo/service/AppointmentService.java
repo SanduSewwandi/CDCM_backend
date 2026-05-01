@@ -23,7 +23,7 @@ public class AppointmentService {
     private PatientRepository patientRepository;
 
     @Autowired
-    private HospitalRepository hospitalRepository; // ✅ Added to fetch hospital names
+    private HospitalRepository hospitalRepository; // fetch hospital names
 
     public Appointment bookAppointment(Appointment appointment) {
         int chosenNumber = Integer.parseInt(appointment.getAppointmentNumber());
@@ -43,10 +43,6 @@ public class AppointmentService {
         return appointmentRepository.findByScheduleId(scheduleId);
     }
 
-    /**
-     * Fetches appointments for a specific doctor, enriches them with patient
-     * details and hospital names, and sorts them.
-     */
     public List<AppointmentResponseDTO> getAppointmentsByDoctor(String doctorId) {
         List<Appointment> appointments = appointmentRepository.findByDoctorId(doctorId);
 

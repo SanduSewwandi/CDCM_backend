@@ -54,7 +54,7 @@ public class HospitalDoctorController {
         }
     }
 
-    // 🏥 Get doctors of a specific hospital
+    // Get doctors of a specific hospital
     @GetMapping("/hospital/{hospitalId}")
     public ResponseEntity<?> getHospitalDoctors(@PathVariable String hospitalId) {
         try {
@@ -67,7 +67,7 @@ public class HospitalDoctorController {
         }
     }
 
-    // ❌ Remove doctor from hospital
+    //  Remove doctor from hospital
     @DeleteMapping("/{doctorId}/remove/{hospitalId}")
     public ResponseEntity<?> removeDoctorFromHospital(@PathVariable String doctorId, @PathVariable String hospitalId) {
         try {
@@ -84,7 +84,7 @@ public class HospitalDoctorController {
         }
     }
 
-    // 📋 Get all assigned doctors
+    // Get all assigned doctors
     @GetMapping("/assigned-all")
     public ResponseEntity<List<Doctor>> getAllAssigned() {
         try {
@@ -96,7 +96,7 @@ public class HospitalDoctorController {
         }
     }
 
-    // 🩺 Get all unique specializations
+    //  Get all unique specializations
     @GetMapping("/specializations")
     public ResponseEntity<List<String>> getSpecializations() {
         try {
@@ -108,7 +108,7 @@ public class HospitalDoctorController {
         }
     }
 
-    // 🏥 Get all hospitals
+    // Get all hospitals
     @GetMapping("/all-hospitals")
     public ResponseEntity<?> getAllHospitals() {
         try {

@@ -22,11 +22,11 @@ public class Appointment {
     private String patientName;
 
     // --- PAYMENT FIELDS ---
-    private String paymentStatus = "PENDING"; // Tracks lifecycle (PENDING/PAID)
-    private String payhereId;                 // Stores gateway transaction ID
-    private double amount;                    // Stores the fee for hash verification[cite: 2]
-    private boolean isPaid = false;           // Boolean flag for quick checks[cite: 2]
-    private LocalDateTime paidAt;             // Timestamp of successful payment[cite: 2]
+    private String paymentStatus = "PENDING";
+    private String payhereId;
+    private double amount;
+    private boolean isPaid = false;
+    private LocalDateTime paidAt;
 
     public Appointment() {
         this.status = "PENDING";

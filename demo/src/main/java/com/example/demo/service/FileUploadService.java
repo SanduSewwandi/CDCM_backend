@@ -17,9 +17,9 @@ public class FileUploadService {
         Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
                 ObjectUtils.asMap(
                         "resource_type", "auto",
-                        "folder", "CDCM",   // ✅ Explicitly set the folder name
-                        "type", "upload",          // ✅ Ensure it is a public 'upload' type
-                        "access_mode", "public"    // ✅ Explicitly set to public
+                        "folder", "CDCM",   //  Explicitly set the folder name
+                        "type", "upload",          //  Ensure it is a public 'upload' type
+                        "access_mode", "public"    //  Explicitly set to public
                 ));
         return uploadResult.get("secure_url").toString();
     }
