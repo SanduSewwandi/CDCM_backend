@@ -8,6 +8,7 @@ public class Schedule {
 
     @Id
     private String id;
+    private String type;
 
     private String doctorId;
     private String hospitalId;
@@ -17,6 +18,7 @@ public class Schedule {
     private String date;
     private String startTime;
     private String endTime;
+    private String meetingLink;
 
     private String status; // PENDING, ACCEPTED, REJECTED
 
@@ -25,18 +27,34 @@ public class Schedule {
 
     public Schedule() {}
 
-    public Schedule(String doctorId, String hospitalId, String date, String startTime, String endTime, String status) {
+    public Schedule( String doctorId,
+                     String hospitalId,
+                     String date,
+                     String startTime,
+                     String endTime,
+                     String type,
+                     String meetingLink,
+                     String status) {
         this.doctorId = doctorId;
         this.hospitalId = hospitalId;
         this.date = date;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.type = type;
+        this.meetingLink = meetingLink;
         this.status = status;
+
     }
 
     // --- Getters and Setters ---
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+
+    public String getMeetingLink() { return meetingLink; }
+    public void setMeetingLink(String meetingLink) { this.meetingLink = meetingLink; }
 
     public String getDoctorId() { return doctorId; }
     public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
