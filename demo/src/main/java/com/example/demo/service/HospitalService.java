@@ -28,8 +28,8 @@ public class HospitalService {
     }
 
     // =========================
-    // REGISTER HOSPITAL (Admin)
     // =========================
+    // REGISTER HOSPITAL (Admin)
     public Hospital registerHospital(HospitalRegisterRequest request) {
 
         Hospital hospital = new Hospital();

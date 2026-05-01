@@ -43,6 +43,42 @@ public class AppointmentService {
         return appointmentRepository.findByScheduleId(scheduleId);
     }
 
+    //getAppointmentsByDoctor
+    public List<AppointmentResponseDTO> getAppointmentsByHospital(String hospitalId) {
+        List<Appointment> appointments = appointmentRepository.findByHospitalId(hospitalId);
+
+        return appointments.stream().map(appt -> {
+                    AppointmentResponseDTO dto = new AppointmentResponseDTO();
+                    dto.setId(appt.getId());
+                    dto.setPatientId(appt.getPatientId());
+                    dto.setAppointmentNumber(appt.getAppointmentNumber());
+                    dto.setDate(appt.getDate());
+                    dto.setTime(appt.getTime());
+                    dto.setStatus(appt.getStatus());
+                    dto.setPaymentStatus(appt.getPaymentStatus());
+                    dto.setDoctorId(appt.getDoctorId());
+                    dto.setPaid(appt.isPaid());
+
+                    // Fetch hospital name
+                    if (appt.getHospitalId() != null) {
+                        hospitalRepository.findById(appt.getHospitalId()).ifPresent(h -> {
+                            dto.setHospitalName(h.getName());
+                        });
+                    }
+
+                    // Fetch patient name from Patient collection
+                    patientRepository.findById(appt.getPatientId()).ifPresent(p -> {
+                        dto.setPatientName(p.getFirstName() + " " + p.getLastName());
+                        dto.setProfileImage(p.getProfileImage());
+                    });
+
+                    return dto;
+                })
+                .sorted(Comparator.comparing(AppointmentResponseDTO::getDate).reversed()
+                        .thenComparing(AppointmentResponseDTO::getAppointmentNumber))
+                .collect(Collectors.toList());
+    }
+
     /**
      * Fetches appointments for a specific doctor, enriches them with patient
      * details and hospital names, and sorts them.
@@ -58,6 +94,11 @@ public class AppointmentService {
                     dto.setDate(appt.getDate());
                     dto.setTime(appt.getTime());
                     dto.setStatus(appt.getStatus());
+
+                    dto.setPaymentStatus(appt.getPaymentStatus());
+                    dto.setDoctorId(appt.getDoctorId());
+                    dto.setPaid(appt.isPaid());
+
 
                     // ✅ FIX: Fetch hospital name using the hospitalId from the appointment
                     if (appt.getHospitalId() != null) {

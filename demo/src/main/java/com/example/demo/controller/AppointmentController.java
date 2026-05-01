@@ -38,4 +38,9 @@ public class AppointmentController {
     public List<AppointmentResponseDTO> getDoctorAppointments(@PathVariable String doctorId) {
         return appointmentService.getAppointmentsByDoctor(doctorId);
     }
+
+    @GetMapping("/hospital/{hospitalId}")
+    public List<AppointmentResponseDTO> getHospitalAppointments(@PathVariable String hospitalId) {
+        return appointmentService.getAppointmentsByHospital(hospitalId);
+    }
 }
