@@ -7,6 +7,8 @@ import com.example.demo.model.Hospital;
 import com.example.demo.repository.ScheduleRepository;
 import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.HospitalRepository;
+import com.example.demo.model.Appointment;
+import com.example.demo.repository.AppointmentRepository;
 
 import org.springframework.stereotype.Service;
 import com.example.demo.model.Notification;
@@ -22,17 +24,20 @@ public class ScheduleService {
     private final DoctorRepository doctorRepository;
     private final HospitalRepository hospitalRepository;
     private final NotificationRepository notificationRepository;
+    private final AppointmentRepository appointmentRepository;
 
     public ScheduleService(
             ScheduleRepository scheduleRepository,
             DoctorRepository doctorRepository,
             HospitalRepository hospitalRepository,
-            NotificationRepository notificationRepository
+            NotificationRepository notificationRepository,
+            AppointmentRepository appointmentRepository
     ) {
         this.scheduleRepository = scheduleRepository;
         this.doctorRepository = doctorRepository;
         this.hospitalRepository = hospitalRepository;
         this.notificationRepository = notificationRepository;
+        this.appointmentRepository = appointmentRepository;
     }
 
 
@@ -49,14 +54,14 @@ public class ScheduleService {
 
         String type = request.getType();
 
-        // ✅ FORCE VALID TYPE
+        // FORCE VALID TYPE
         if (type == null || type.isEmpty()) {
             type = "PHYSICAL";
         }
 
         schedule.setType(type);
 
-        // ✅ ONLY VIDEO HAS MEETING LINK
+        // ONLY VIDEO HAS MEETING LINK
         if ("VIDEO".equalsIgnoreCase(type)) {
             schedule.setMeetingLink(request.getMeetingLink());
         } else {
@@ -69,7 +74,7 @@ public class ScheduleService {
     // ----------------- DOCTOR SCHEDULES -----------------
     public List<Schedule> getDoctorSchedules(String doctorId) {
         List<Schedule> schedules = scheduleRepository.findByDoctorId(doctorId);
-        populateDoctorAndHospitalInfo(schedules); // ✅ populate hospitalName
+        populateDoctorAndHospitalInfo(schedules); //
         return schedules;
     }
 
@@ -101,57 +106,78 @@ public class ScheduleService {
         return scheduleRepository.save(schedule);
     }
 
-public Schedule cancelSchedule(String id) {
-    try {
-        System.out.println("Cancel request received for schedule id: " + id);
+    public Schedule cancelSchedule(String id) {
+        try {
 
-        Schedule schedule = scheduleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
+            Schedule schedule = scheduleRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
 
-        System.out.println("Schedule found. Current status: " + schedule.getStatus());
+            schedule.setStatus("CANCELLED");
+            Schedule updatedSchedule = scheduleRepository.save(schedule);
 
-        schedule.setStatus("CANCELLED");
-        Schedule updatedSchedule = scheduleRepository.save(schedule);
 
-        Doctor doctor = doctorRepository.findById(schedule.getDoctorId()).orElse(null);
-        Hospital hospital = hospitalRepository.findById(schedule.getHospitalId()).orElse(null);
+            Doctor doctor = doctorRepository.findById(schedule.getDoctorId()).orElse(null);
+            Hospital hospital = hospitalRepository.findById(schedule.getHospitalId()).orElse(null);
 
-        String doctorName = "Doctor";
-        if (doctor != null) {
-            doctorName = "Dr. " + doctor.getFirstName() + " " + doctor.getLastName();
+            String doctorName = "Doctor";
+            if (doctor != null) {
+                doctorName = "Dr. " + doctor.getFirstName() + " " + doctor.getLastName();
+            }
+
+            String hospitalName = "the hospital";
+            if (hospital != null) {
+                hospitalName = hospital.getName();
+            }
+
+
+            List<Appointment> appointments =
+                    appointmentRepository.findByScheduleId(schedule.getId());
+
+            for (Appointment appt : appointments) {
+
+                Notification patientNotification = new Notification();
+
+                patientNotification.setUserId(appt.getPatientId());
+                patientNotification.setHospitalId(schedule.getHospitalId());
+                patientNotification.setScheduleId(schedule.getId());
+
+                patientNotification.setScheduleType(schedule.getType());
+                patientNotification.setDate(schedule.getDate());
+                patientNotification.setTime(schedule.getStartTime() + " - " + schedule.getEndTime());
+                patientNotification.setDoctorId(schedule.getDoctorId());
+                patientNotification.setDoctorName(doctorName);
+
+                patientNotification.setMessage(
+                        "Your appointment with " + doctorName +
+                                " on " + schedule.getDate() +
+                                " has been cancelled by " + hospitalName + "."
+                );
+
+                patientNotification.setRead(false);
+
+                notificationRepository.save(patientNotification);
+            }
+
+
+            Notification hospitalNotification = new Notification();
+            hospitalNotification.setUserId(schedule.getHospitalId());
+            hospitalNotification.setMessage(
+                    doctorName + " has cancelled the schedule on "
+                            + schedule.getDate()
+                            + " from " + schedule.getStartTime()
+                            + " to " + schedule.getEndTime()
+                            + " at " + hospitalName + "."
+            );
+
+            hospitalNotification.setRead(false);
+            notificationRepository.save(hospitalNotification);
+
+            return updatedSchedule;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error while cancelling schedule: " + e.getMessage());
         }
-
-        String hospitalName = "the hospital";
-        if (hospital != null) {
-            hospitalName = hospital.getName();
-        }
-
-        Notification notification = new Notification();
-
-        // send notification to hospital user
-        notification.setUserId(schedule.getHospitalId());
-
-        notification.setMessage(
-                doctorName + " has cancelled the schedule on "
-                        + schedule.getDate()
-                        + " from " + schedule.getStartTime()
-                        + " to " + schedule.getEndTime()
-                        + " at " + hospitalName + "."
-        );
-
-        notification.setRead(false);
-        notificationRepository.save(notification);
-
-        System.out.println("Schedule cancelled successfully. New status: " + updatedSchedule.getStatus());
-
-        return updatedSchedule;
-
-    } catch (Exception e) {
-        System.out.println("Error while cancelling schedule: " + e.getMessage());
-        e.printStackTrace();
-        throw new RuntimeException("Error while cancelling schedule: " + e.getMessage());
     }
-}
     // ----------------- HELPER METHOD -----------------
     /**
      * Populates doctorName, specialty, hospitalName, and hospitalLocation
@@ -173,8 +199,8 @@ public Schedule cancelSchedule(String id) {
             if (s.getHospitalId() != null) {
                 Hospital hospital = hospitalRepository.findById(s.getHospitalId()).orElse(null);
                 if (hospital != null) {
-                    s.setHospitalName(hospital.getName());       // ✅ This fixes Unknown Hospital
-                    s.setHospitalLocation(hospital.getLocation()); // optional
+                    s.setHospitalName(hospital.getName());
+                    s.setHospitalLocation(hospital.getLocation());
                 }
             }
         }
