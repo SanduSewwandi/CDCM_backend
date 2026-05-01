@@ -61,15 +61,23 @@ public class PaymentService {
             appointmentRepo.save(a);
         });
 
-        // Check if the orderId belongs to a Lab Test[cite: 2]
-//        labRepo.findById(orderId).ifPresent(l -> {
-//            l.setPaymentStatus("PAID");
-//            l.setPayhereId(payhereId);
-//            l.setPaid(true);
-//            l.setPaidAt(java.time.LocalDateTime.now());
-//            l.setStatus("PAID");
-//            labRepo.save(l);
-//        });
+        labRepo.findById(orderId).ifPresent(l -> {
+
+            l.setPaid(true);
+            l.setPaidAt(now);
+            l.setStatus("PAID");
+            l.setReportStatus("Processing"); // optional but good
+
+            labRepo.save(l);
+
+//            Notification n = new Notification();
+//            n.setUserId(l.getHospitalId());
+//            n.setMessage("Lab test paid for " + l.getTestType() + " (Rs " + l.getPrice() + ")");
+//            n.setRead(false);
+//            n.setCreatedAt(now);
+//
+//            notificationRepository.save(n);
+        });
     }
 
     private String md5(String input) throws NoSuchAlgorithmException {
