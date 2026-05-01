@@ -1,8 +1,10 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.PaymentNotificationDTO;
+import com.example.demo.model.Notification;
 import com.example.demo.repository.AppointmentRepository;
 import com.example.demo.repository.LabTestRepository;
+import com.example.demo.repository.NotificationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,17 +22,26 @@ public class PaymentService {
     @Autowired
     private LabTestRepository labRepo;
 
+    @Autowired
+    private NotificationRepository notificationRepo; // Added for patient alerts
+
     // This value is pulled from your .env file via application.properties
     @Value("${payhere.merchant.secret}")
     private String merchantSecret;
 
 
     public void processNotification(PaymentNotificationDTO dto) {
+        if (verifyMd5Sig(dto)) { // Ensure this verification passes
+            if ("2".equals(dto.getStatus_code())) { // Status 2 = Success
+                updateRecordStatus(dto.getOrder_id(), dto.getPayment_id()); //
 
-        if (verifyMd5Sig(dto)) {
+                Notification note = new Notification();
+                note.setUserId(dto.getCustom_1()); //
+                note.setTitle("Appointment Confirmed");
+                note.setMessage("Payment Successful for Appointment #" + dto.getOrder_id()); //
+                note.setCreatedAt(LocalDateTime.now()); //
 
-            if ("2".equals(dto.getStatus_code())) {
-                updateRecordStatus(dto.getOrder_id(), dto.getPayment_id());
+                notificationRepo.save(note);
             }
         }
     }
@@ -51,25 +62,16 @@ public class PaymentService {
     private void updateRecordStatus(String orderId, String payhereId) {
         LocalDateTime now = LocalDateTime.now();
 
-        // Check if the orderId belongs to an Appointment[cite: 2]
+        // Check if the orderId belongs to an Appointment
         appointmentRepo.findById(orderId).ifPresent(a -> {
             a.setPaymentStatus("PAID");
             a.setPayhereId(payhereId);
             a.setPaid(true);
             a.setPaidAt(now);
-            a.setStatus("CONFIRMED");   // Transition from PENDING to CONFIRMED[cite: 2]
+            a.setStatus("CONFIRMED");   // Transition from PENDING to CONFIRMED
             appointmentRepo.save(a);
         });
 
-        // Check if the orderId belongs to a Lab Test[cite: 2]
-//        labRepo.findById(orderId).ifPresent(l -> {
-//            l.setPaymentStatus("PAID");
-//            l.setPayhereId(payhereId);
-//            l.setPaid(true);
-//            l.setPaidAt(java.time.LocalDateTime.now());
-//            l.setStatus("PAID");
-//            labRepo.save(l);
-//        });
     }
 
     private String md5(String input) throws NoSuchAlgorithmException {

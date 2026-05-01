@@ -11,10 +11,12 @@ public class Notification {
     @Id
     private String id;
 
-    private String userId;        // same as patientId
+    private String userId;// same as patientId
+    private String hospitalId;
     private String message;
     private boolean read = false;
     private LocalDateTime createdAt = LocalDateTime.now();
+    private String title;
 
     // getters & setters
     public String getId() { return id; }
@@ -22,6 +24,9 @@ public class Notification {
 
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+
+    public String getHospitalId() { return hospitalId; }
+    public void setHospitalId(String hospitalId) { this.hospitalId = hospitalId; }
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
@@ -31,4 +36,7 @@ public class Notification {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public void setTitle(String title) {this.title = title;}
+    public String getTitle() {return title;}
 }

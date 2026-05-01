@@ -23,7 +23,7 @@ public class AppointmentService {
     private PatientRepository patientRepository;
 
     @Autowired
-    private HospitalRepository hospitalRepository;
+    private HospitalRepository hospitalRepository; 
 
     public Appointment bookAppointment(Appointment appointment) {
         int chosenNumber = Integer.parseInt(appointment.getAppointmentNumber());

@@ -45,8 +45,23 @@ public class ScheduleService {
         schedule.setDate(request.getDate());
         schedule.setStartTime(request.getStartTime());
         schedule.setEndTime(request.getEndTime());
+        schedule.setStatus("PENDING");
 
-        schedule.setStatus("PENDING"); // default status
+        String type = request.getType();
+
+        // ✅ FORCE VALID TYPE
+        if (type == null || type.isEmpty()) {
+            type = "PHYSICAL";
+        }
+
+        schedule.setType(type);
+
+        // ✅ ONLY VIDEO HAS MEETING LINK
+        if ("VIDEO".equalsIgnoreCase(type)) {
+            schedule.setMeetingLink(request.getMeetingLink());
+        } else {
+            schedule.setMeetingLink(null);
+        }
 
         return scheduleRepository.save(schedule);
     }
@@ -138,10 +153,7 @@ public Schedule cancelSchedule(String id) {
     }
 }
     // ----------------- HELPER METHOD -----------------
-    /**
-     * Populates doctorName, specialty, hospitalName, and hospitalLocation
-     * for all schedules in the list.
-     */
+
     private void populateDoctorAndHospitalInfo(List<Schedule> schedules) {
         for (Schedule s : schedules) {
 

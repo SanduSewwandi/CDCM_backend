@@ -8,17 +8,30 @@ public class ScheduleRequest {
     private String startTime;
     private String endTime;
 
+    private String type;         // PHYSICAL / VIDEO
+    private String meetingLink;  // for VIDEO only
+
     // Default Constructor
     public ScheduleRequest() {
+
     }
 
     // Parameterized Constructor
-    public ScheduleRequest(String doctorId, String hospitalId, String date, String startTime, String endTime) {
+    public ScheduleRequest(
+            String doctorId,
+            String hospitalId,
+            String date,
+            String startTime,
+            String endTime,
+            String type,
+            String meetingLink) {
         this.doctorId = doctorId;
         this.hospitalId = hospitalId;
         this.date = date;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.type = type;
+        this.meetingLink = meetingLink;
     }
 
     // Getter and Setter for doctorId
@@ -64,5 +77,21 @@ public class ScheduleRequest {
 
     public void setEndTime(String endTime) {
         this.endTime = endTime;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getMeetingLink() {
+        return meetingLink;
+    }
+
+    public void setMeetingLink(String meetingLink) {
+        this.meetingLink = meetingLink;
     }
 }
