@@ -23,6 +23,7 @@ public class Notification {
     private String doctorId;
     private String doctorName;
 
+    private String title;
 
     // getters & setters
     public String getId() { return id; }
@@ -61,4 +62,6 @@ public class Notification {
     public String getDoctorName() { return doctorName; }
     public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
 
+    public void setTitle(String title) {this.title = title;}
+    public String getTitle() {return title;}
 }

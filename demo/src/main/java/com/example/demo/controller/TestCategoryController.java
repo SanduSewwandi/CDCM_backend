@@ -17,7 +17,7 @@ public class TestCategoryController {
         this.repo = repo;
     }
 
-    // ➕ CREATE TEST
+    // CREATE TEST
     @PostMapping("/{hospitalId}")
     public TestCategory createTest(
             @PathVariable String hospitalId,
@@ -27,13 +27,13 @@ public class TestCategoryController {
         return repo.save(test);
     }
 
-    // 📥 GET TESTS
+    // GET TESTS
     @GetMapping("/{hospitalId}")
     public List<TestCategory> getTests(@PathVariable String hospitalId) {
         return repo.findByHospitalId(hospitalId);
     }
 
-    // ✏ UPDATE TEST
+    // UPDATE TEST
     @PutMapping("/{id}")
     public TestCategory updateTest(
             @PathVariable String id,
@@ -48,7 +48,7 @@ public class TestCategoryController {
         return repo.save(existing);
     }
 
-    // ❌ DELETE TEST
+    // DELETE TEST
     @DeleteMapping("/{id}")
     public void deleteTest(@PathVariable String id) {
         repo.deleteById(id);

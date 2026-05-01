@@ -20,9 +20,8 @@ public class DoctorController {
         this.doctorService = doctorService;
     }
 
-    // =========================
+
     // DOCTOR PROFILE (Profile.jsx)
-    // =========================
     @GetMapping("/{id}")
     public ResponseEntity<Doctor> getDoctorProfile(@PathVariable String id) {
         return ResponseEntity.ok(doctorService.getDoctorById(id));
@@ -36,9 +35,9 @@ public class DoctorController {
         return ResponseEntity.ok(doctorService.updateDoctor(id, doctor));
     }
 
-    // =========================
+
     // DOCTOR ACCOUNT (Account.jsx)
-    // =========================
+
     @GetMapping("/{id}/account")
     public ResponseEntity<DoctorAccountDTO> getDoctorAccount(@PathVariable String id) {
         return ResponseEntity.ok(doctorService.getDoctorAccount(id));
@@ -52,9 +51,9 @@ public class DoctorController {
         return ResponseEntity.ok(doctorService.updateDoctorAccount(id, dto));
     }
 
-    // =========================
+
     // GET all doctors (simplified)
-    // =========================
+
     @GetMapping
     public ResponseEntity<List<Map<String, String>>> getAllDoctors() {
         List<Doctor> doctors = doctorService.getAllDoctors();
@@ -68,9 +67,8 @@ public class DoctorController {
         return ResponseEntity.ok(response);
     }
 
-    // =========================
     // GET doctors by hospital (simplified)
-    // =========================
+
     @GetMapping("/hospital/{hospitalId}")
     public ResponseEntity<List<Map<String, String>>> getDoctorsByHospital(@PathVariable String hospitalId) {
         List<Doctor> doctors = doctorService.getDoctorsByHospital(hospitalId);
