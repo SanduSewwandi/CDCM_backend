@@ -29,6 +29,18 @@ public class NotificationController {
         }
     }
 
+    // Get notifications for hospital
+    @GetMapping("/hospital/{hospitalId}")
+    public ResponseEntity<?> getHospitalNotifications(@PathVariable String hospitalId) {
+        try {
+            List<Notification> notifications = repo.findByUserIdOrderByCreatedAtDesc(hospitalId);
+            return ResponseEntity.ok(notifications);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error fetching hospital notifications: " + e.getMessage());
+        }
+    }
+
+
     // Mark as read
     @PutMapping("/read/{id}")
     public ResponseEntity<?> markAsRead(@PathVariable String id) {

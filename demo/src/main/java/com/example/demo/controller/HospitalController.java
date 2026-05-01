@@ -19,7 +19,7 @@ public class HospitalController {
         this.hospitalService = hospitalService;
     }
 
-    // ✅ Get all hospitals
+    // Get all hospitals
     @GetMapping("/all")
     public ResponseEntity<List<Hospital>> getAllHospitals() {
         try {
@@ -31,7 +31,7 @@ public class HospitalController {
         }
     }
 
-    // ✅ Get single hospital by ID
+    // Get single hospital by ID
     @GetMapping("/{id}")
     public ResponseEntity<Hospital> getHospitalById(@PathVariable String id) {
         try {
