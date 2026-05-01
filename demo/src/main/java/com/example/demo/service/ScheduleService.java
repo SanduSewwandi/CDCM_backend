@@ -153,10 +153,7 @@ public Schedule cancelSchedule(String id) {
     }
 }
     // ----------------- HELPER METHOD -----------------
-    /**
-     * Populates doctorName, specialty, hospitalName, and hospitalLocation
-     * for all schedules in the list.
-     */
+
     private void populateDoctorAndHospitalInfo(List<Schedule> schedules) {
         for (Schedule s : schedules) {
 

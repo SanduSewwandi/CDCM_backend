@@ -16,6 +16,7 @@ public class Notification {
     private String message;
     private boolean read = false;
     private LocalDateTime createdAt = LocalDateTime.now();
+    private String title;
 
     // getters & setters
     public String getId() { return id; }
@@ -35,4 +36,7 @@ public class Notification {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public void setTitle(String title) {this.title = title;}
+    public String getTitle() {return title;}
 }

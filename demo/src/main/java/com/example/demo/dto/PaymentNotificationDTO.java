@@ -11,6 +11,17 @@ public class PaymentNotificationDTO {
     private String payhere_currency;
     private String status_code;
     private String md5sig;
-    private String method;
-    private String status_message;
+
+
+    private String custom_1;
+    private String custom_2;
+
+
+    public String getCustom_1() {
+        return custom_1;
+    }
+
+    public void setCustom_1(String custom_1) {
+        this.custom_1 = custom_1;
+    }
 }

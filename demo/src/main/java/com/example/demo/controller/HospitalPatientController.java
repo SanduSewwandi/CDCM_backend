@@ -100,8 +100,6 @@ public class HospitalPatientController {
                             aptDTO.setDoctorName(doctor.getTitle() + " " + doctor.getFirstName() + " " + doctor.getLastName());
                         });
 
-                        // You can set hospitalName if needed
-                        // aptDTO.setHospitalName(hospitalName);
 
                         appointmentHistory.add(aptDTO);
                     }
