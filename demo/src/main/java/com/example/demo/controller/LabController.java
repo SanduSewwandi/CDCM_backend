@@ -54,6 +54,7 @@ public class LabController {
     public LabTest addLabTest(@RequestBody LabTestRequest request) {
         LabTest test = new LabTest();  // createdAt and updatedAt are set in constructor
         test.setPatientId(request.getPatientId());
+        test.setHospitalId(request.getHospitalId());
         test.setTestType(request.getTestType());
         test.setPrice(request.getPrice());
         test.setTestDate(request.getTestDate());
@@ -118,9 +119,26 @@ public class LabController {
         test.setPaid(true);
         test.setPaidAt(LocalDateTime.now());
 
-        return labTestRepository.save(test);
-    }
+        LabTest savedTest = labTestRepository.save(test);
 
+        // ---- SEND HOSPITAL NOTIFICATION ----
+        if (test.getHospitalId() != null && !test.getHospitalId().isEmpty()) {
+            Notification hospitalNotification = new Notification();
+            hospitalNotification.setUserId(test.getHospitalId()); // hospital gets the notification
+            hospitalNotification.setMessage(
+                    "Patient " + test.getPatientId() + " has paid for " + test.getTestType() + " (Rs " + test.getPrice() + ")"
+            );
+            hospitalNotification.setRead(false);
+            hospitalNotification.setCreatedAt(LocalDateTime.now());
+
+            notificationRepository.save(hospitalNotification);
+            System.out.println("Hospital notification saved for: " + test.getHospitalId());
+        } else {
+            System.err.println("Hospital ID missing → cannot send notification");
+        }
+
+        return savedTest;
+    }
     /** delete test */
     @DeleteMapping("/delete/{id}")
     public void deleteTest(@PathVariable String id) {
