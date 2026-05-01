@@ -2,13 +2,14 @@ package com.example.demo.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import java.time.LocalDateTime;
 
 @Document(collection = "appointments")
 public class Appointment {
 
     @Id
     private String id;
-    private String appointmentNumber; // Will be auto-generated
+    private String appointmentNumber;
 
     private String patientId;
     private String doctorId;
@@ -17,12 +18,24 @@ public class Appointment {
 
     private String date;
     private String time;
-    private String status;
-    private String patientName;// e.g., "CONFIRMED", "CANCELLED", "COMPLETED"
+    private String status; // e.g., "CONFIRMED", "CANCELLED", "COMPLETED"
+    private String patientName;
 
-    public Appointment() {}
+    // --- PAYMENT FIELDS ---
+    private String paymentStatus = "PENDING"; // Tracks lifecycle (PENDING/PAID)
+    private String payhereId;                 // Stores gateway transaction ID
+    private double amount;                    // Stores the fee for hash verification[cite: 2]
+    private boolean isPaid = false;           // Boolean flag for quick checks[cite: 2]
+    private LocalDateTime paidAt;             // Timestamp of successful payment[cite: 2]
 
-    // Getters and Setters
+    public Appointment() {
+        this.status = "PENDING";
+        this.paymentStatus = "PENDING";
+        this.isPaid = false;
+    }
+
+    // --- GETTERS AND SETTERS ---
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -52,4 +65,21 @@ public class Appointment {
 
     public String getPatientName() { return patientName; }
     public void setPatientName(String patientName) { this.patientName = patientName; }
+
+    // --- PAYMENT GETTERS AND SETTERS ---
+
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+
+    public String getPayhereId() { return payhereId; }
+    public void setPayhereId(String payhereId) { this.payhereId = payhereId; }
+
+    public double getAmount() { return amount; }
+    public void setAmount(double amount) { this.amount = amount; }
+
+    public boolean isPaid() { return isPaid; }
+    public void setPaid(boolean paid) { this.isPaid = paid; }
+
+    public LocalDateTime getPaidAt() { return paidAt; }
+    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
 }
