@@ -70,4 +70,10 @@ public class ScheduleController {
     public Schedule rejectSchedule(@PathVariable String id) {
         return scheduleService.rejectSchedule(id);
     }
+
+    @PutMapping("/cancel/{id}")
+    public Schedule cancelSchedule(@PathVariable String id) {
+        System.out.println("Controller hit: cancel schedule with id = " + id);
+        return scheduleService.cancelSchedule(id);
+    }
 }

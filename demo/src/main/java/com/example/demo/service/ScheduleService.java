@@ -7,7 +7,11 @@ import com.example.demo.model.Hospital;
 import com.example.demo.repository.ScheduleRepository;
 import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.HospitalRepository;
+
 import org.springframework.stereotype.Service;
+import com.example.demo.model.Notification;
+import com.example.demo.repository.NotificationRepository;
+
 
 import java.util.List;
 
@@ -17,16 +21,20 @@ public class ScheduleService {
     private final ScheduleRepository scheduleRepository;
     private final DoctorRepository doctorRepository;
     private final HospitalRepository hospitalRepository;
+    private final NotificationRepository notificationRepository;
 
     public ScheduleService(
             ScheduleRepository scheduleRepository,
             DoctorRepository doctorRepository,
-            HospitalRepository hospitalRepository
+            HospitalRepository hospitalRepository,
+            NotificationRepository notificationRepository
     ) {
         this.scheduleRepository = scheduleRepository;
         this.doctorRepository = doctorRepository;
         this.hospitalRepository = hospitalRepository;
+        this.notificationRepository = notificationRepository;
     }
+
 
     // ----------------- CREATE SCHEDULE -----------------
     public Schedule createSchedule(ScheduleRequest request) {
@@ -78,6 +86,57 @@ public class ScheduleService {
         return scheduleRepository.save(schedule);
     }
 
+public Schedule cancelSchedule(String id) {
+    try {
+        System.out.println("Cancel request received for schedule id: " + id);
+
+        Schedule schedule = scheduleRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
+
+        System.out.println("Schedule found. Current status: " + schedule.getStatus());
+
+        schedule.setStatus("CANCELLED");
+        Schedule updatedSchedule = scheduleRepository.save(schedule);
+
+        Doctor doctor = doctorRepository.findById(schedule.getDoctorId()).orElse(null);
+        Hospital hospital = hospitalRepository.findById(schedule.getHospitalId()).orElse(null);
+
+        String doctorName = "Doctor";
+        if (doctor != null) {
+            doctorName = "Dr. " + doctor.getFirstName() + " " + doctor.getLastName();
+        }
+
+        String hospitalName = "the hospital";
+        if (hospital != null) {
+            hospitalName = hospital.getName();
+        }
+
+        Notification notification = new Notification();
+
+        // send notification to hospital user
+        notification.setUserId(schedule.getHospitalId());
+
+        notification.setMessage(
+                doctorName + " has cancelled the schedule on "
+                        + schedule.getDate()
+                        + " from " + schedule.getStartTime()
+                        + " to " + schedule.getEndTime()
+                        + " at " + hospitalName + "."
+        );
+
+        notification.setRead(false);
+        notificationRepository.save(notification);
+
+        System.out.println("Schedule cancelled successfully. New status: " + updatedSchedule.getStatus());
+
+        return updatedSchedule;
+
+    } catch (Exception e) {
+        System.out.println("Error while cancelling schedule: " + e.getMessage());
+        e.printStackTrace();
+        throw new RuntimeException("Error while cancelling schedule: " + e.getMessage());
+    }
+}
     // ----------------- HELPER METHOD -----------------
     /**
      * Populates doctorName, specialty, hospitalName, and hospitalLocation
