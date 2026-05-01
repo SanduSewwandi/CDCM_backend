@@ -11,11 +11,18 @@ public class Notification {
     @Id
     private String id;
 
-    private String userId;// same as patientId
+    private String userId;
     private String hospitalId;
     private String message;
     private boolean read = false;
     private LocalDateTime createdAt = LocalDateTime.now();
+    private String scheduleId;
+    private String scheduleType;
+    private String date;
+    private String time;
+    private String doctorId;
+    private String doctorName;
+
     private String title;
 
     // getters & setters
@@ -36,6 +43,24 @@ public class Notification {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getScheduleId() { return scheduleId; }
+    public void setScheduleId(String scheduleId) { this.scheduleId = scheduleId; }
+
+    public String getScheduleType() { return scheduleType; }
+    public void setScheduleType(String scheduleType) { this.scheduleType = scheduleType; }
+
+    public String getDate() { return date; }
+    public void setDate(String date) { this.date = date; }
+
+    public String getTime() { return time; }
+    public void setTime(String time) { this.time = time; }
+
+    public String getDoctorId() { return doctorId; }
+    public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
+
+    public String getDoctorName() { return doctorName; }
+    public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
 
     public void setTitle(String title) {this.title = title;}
     public String getTitle() {return title;}
