@@ -6,6 +6,7 @@ public class LabTestRequest {
 
 
     private String patientId;
+    private String hospitalId;
     private String testType;
     private double price;
     private LocalDate testDate;
@@ -22,13 +23,20 @@ public class LabTestRequest {
     public LabTestRequest() {}
 
 
-
     public String getPatientId() {
         return patientId;
     }
 
     public void setPatientId(String patientId) {
         this.patientId = patientId;
+    }
+
+    public String getHospitalId() {
+        return hospitalId;
+    }
+
+    public void setHospitalId(String hospitalId) {
+        this.hospitalId = hospitalId;
     }
 
     public String getTestType() {
