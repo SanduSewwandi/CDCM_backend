@@ -23,7 +23,7 @@ public class AppointmentService {
     private PatientRepository patientRepository;
 
     @Autowired
-    private HospitalRepository hospitalRepository; // fetch hospital names
+    private HospitalRepository hospitalRepository; 
 
     public Appointment bookAppointment(Appointment appointment) {
         int chosenNumber = Integer.parseInt(appointment.getAppointmentNumber());
@@ -79,6 +79,43 @@ public class AppointmentService {
                 .collect(Collectors.toList());
     }
 
+    public List<Appointment> autoAssignNumbers(String hospitalId, String date) {
+
+        List<Appointment> appointments = appointmentRepository.findByHospitalId(hospitalId);
+
+        List<Appointment> filtered = appointments.stream()
+                .filter(a -> date.equals(a.getDate()))
+                .filter(a -> !"CANCELLED".equalsIgnoreCase(a.getStatus()))
+                .sorted((a, b) -> {
+                    if (a.getDoctorId() == null) return 1;
+                    if (b.getDoctorId() == null) return -1;
+
+                    int doctorCompare = a.getDoctorId().compareTo(b.getDoctorId());
+                    if (doctorCompare != 0) return doctorCompare;
+
+                    if (a.getTime() == null) return 1;
+                    if (b.getTime() == null) return -1;
+
+                    return a.getTime().compareTo(b.getTime());
+                })
+                .toList();
+
+        String currentDoctor = "";
+        int number = 1;
+
+        for (Appointment appointment : filtered) {
+            if (!appointment.getDoctorId().equals(currentDoctor)) {
+                currentDoctor = appointment.getDoctorId();
+                number = 1;
+            }
+
+            appointment.setAppointmentNumber("APT-" + String.format("%03d", number));
+            number++;
+        }
+
+        return appointmentRepository.saveAll(filtered);
+    }
+
     /**
      * Fetches appointments for a specific doctor, enriches them with patient
      * details and hospital names, and sorts them.
@@ -100,7 +137,7 @@ public class AppointmentService {
                     dto.setPaid(appt.isPaid());
 
 
-                    // ✅ FIX: Fetch hospital name using the hospitalId from the appointment
+                    //  Fetch hospital name using the hospitalId from the appointment
                     if (appt.getHospitalId() != null) {
                         hospitalRepository.findById(appt.getHospitalId()).ifPresent(h -> {
                             dto.setHospitalName(h.getName());
