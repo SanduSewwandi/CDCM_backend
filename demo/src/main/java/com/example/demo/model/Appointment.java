@@ -10,6 +10,8 @@ public class Appointment {
     @Id
     private String id;
     private String appointmentNumber;
+    private String consultationType;
+    private String meetingLink;
 
     private String patientId;
     private String doctorId;
@@ -82,4 +84,20 @@ public class Appointment {
 
     public LocalDateTime getPaidAt() { return paidAt; }
     public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
+
+    public String getConsultationType() {
+        return consultationType;
+    }
+
+    public void setConsultationType(String consultationType) {
+        this.consultationType = consultationType;
+    }
+
+    public String getMeetingLink() {
+        return meetingLink;
+    }
+
+    public void setMeetingLink(String meetingLink) {
+        this.meetingLink = meetingLink;
+    }
 }
