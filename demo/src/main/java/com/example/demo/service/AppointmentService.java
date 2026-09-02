@@ -26,6 +26,13 @@ public class AppointmentService {
     private HospitalRepository hospitalRepository; 
 
     public Appointment bookAppointment(Appointment appointment) {
+        if (appointmentRepository.existsByPatientIdAndDoctorIdAndScheduleId(
+                appointment.getPatientId(),
+                appointment.getDoctorId(),
+                appointment.getScheduleId())) {
+            throw new IllegalArgumentException("You have already booked this doctor's schedule.");
+        }
+
         int chosenNumber = Integer.parseInt(appointment.getAppointmentNumber());
         String formattedApptNumber = String.format("APT-%03d", chosenNumber);
 
