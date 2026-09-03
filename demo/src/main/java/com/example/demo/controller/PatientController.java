@@ -16,9 +16,8 @@ public class PatientController {
         this.patientService = patientService;
     }
 
-    // =========================
     // PATIENT PROFILE (Profile.jsx)
-    // =========================
+
 
     @GetMapping("/{id}")
     public ResponseEntity<Patient> getPatientProfile(@PathVariable String id) {

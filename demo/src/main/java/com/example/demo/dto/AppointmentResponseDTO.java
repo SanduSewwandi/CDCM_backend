@@ -13,4 +13,10 @@ public class AppointmentResponseDTO {
     private String time;
     private String status;
     private String hospitalName;
+
+    // get patient name
+    private String paymentStatus;
+    private String doctorId;
+    private boolean isPaid;
+
 }

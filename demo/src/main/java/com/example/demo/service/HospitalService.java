@@ -30,8 +30,8 @@ public class HospitalService {
     }
 
     // =========================
-    // REGISTER HOSPITAL (Admin)
     // =========================
+    // REGISTER HOSPITAL (Admin)
     public Hospital registerHospital(HospitalRegisterRequest request) {
 
         if (hospitalRepository.findByEmail(request.getEmail()).isPresent()) {

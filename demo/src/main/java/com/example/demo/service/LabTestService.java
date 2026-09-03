@@ -48,9 +48,6 @@ public class LabTestService {
             labTest.setStatus("Completed");
         }
 
-        // DON'T try to set createdAt or updatedAt here!
-        // The touch() method in the model handles updatedAt automatically
-        // createdAt is already set in the constructor
 
         return labTestRepository.save(labTest);
     }

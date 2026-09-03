@@ -42,9 +42,8 @@ public class AuthController {
         this.jwtService = jwtService;
     }
 
-    // =========================
     // VERIFY EMAIL (OTP)
-    // =========================
+
     @PostMapping("/verify")
     public ResponseEntity<?> verifyEmail(@RequestBody java.util.Map<String, String> request) {
 
@@ -96,9 +95,9 @@ public class AuthController {
         }
     }
 
-    // =========================
+
     // REGISTER PATIENT
-    // =========================
+
     @PostMapping("/register/patient")
     public ResponseEntity<?> registerPatient(
             @Valid @RequestBody PatientRegisterRequest request) {
@@ -113,9 +112,8 @@ public class AuthController {
         );
     }
 
-    // =========================
     // REGISTER DOCTOR
-    // =========================
+
     @PostMapping("/register/doctor")
     public ResponseEntity<?> registerDoctor(
             @Valid @RequestBody DoctorRegisterRequest request) {
@@ -130,9 +128,8 @@ public class AuthController {
         );
     }
 
-    // =========================
     // LOGIN (ALL ROLES)
-    // =========================
+
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest request) {
@@ -265,9 +262,8 @@ public class AuthController {
                 ));
     }
 
-    // =========================
     // FORGOT PASSWORD
-    // =========================
+
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(
             @RequestParam String email,

@@ -13,7 +13,7 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    // ✅ Account verification
+    // Account verification
     public void sendOtp(String to, String otp) {
         SimpleMailMessage msg = new SimpleMailMessage();
         msg.setTo(to);
@@ -22,7 +22,7 @@ public class EmailService {
         mailSender.send(msg);
     }
 
-    // ✅ NEW → Password reset email
+    // NEW → Password reset email
     public void sendPasswordResetEmail(String to, String token) {
 
         String resetLink = "http://localhost:5173/reset-password/" + token;

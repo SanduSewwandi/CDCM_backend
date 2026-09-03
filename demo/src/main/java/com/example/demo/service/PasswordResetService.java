@@ -31,9 +31,9 @@ public class PasswordResetService {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    // =========================================================
+
     // GENERATE RESET TOKEN + SEND EMAIL
-    // =========================================================
+
     public String generateResetToken(String email) {
 
         String token = UUID.randomUUID().toString();

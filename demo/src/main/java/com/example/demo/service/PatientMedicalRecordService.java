@@ -25,7 +25,7 @@ public class PatientMedicalRecordService {
     }
 
     public List<PatientMedicalRecord> getHistoryByPatient(String patientId) {
-        // ✅ Use the new method name here
+        //  Use the new method name here
         return repository.findByPatientIdOrderByDateOfVisitDesc(patientId);
     }
 }
