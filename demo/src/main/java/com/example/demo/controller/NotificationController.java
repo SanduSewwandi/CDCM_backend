@@ -19,7 +19,7 @@ public class NotificationController {
     }
 
     // Get notifications for patient/user
-    @GetMapping("/{userId}")
+    @GetMapping({ "/{userId}", "/patient/{userId}" })
     public ResponseEntity<?> getNotifications(@PathVariable String userId) {
         try {
             List<Notification> notifications = repo.findByUserIdOrderByCreatedAtDesc(userId);

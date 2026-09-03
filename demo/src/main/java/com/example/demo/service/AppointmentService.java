@@ -2,15 +2,21 @@ package com.example.demo.service;
 
 import com.example.demo.dto.AppointmentResponseDTO;
 import com.example.demo.model.Appointment;
+import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
+import com.example.demo.model.Notification;
 import com.example.demo.repository.AppointmentRepository;
+import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.HospitalRepository;
+import com.example.demo.repository.NotificationRepository;
 import com.example.demo.repository.PatientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +30,12 @@ public class AppointmentService {
 
     @Autowired
     private HospitalRepository hospitalRepository; 
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
+    private DoctorRepository doctorRepository;
 
     public Appointment bookAppointment(Appointment appointment) {
         if (appointmentRepository.existsByPatientIdAndDoctorIdAndScheduleId(
@@ -39,7 +51,54 @@ public class AppointmentService {
         appointment.setAppointmentNumber(formattedApptNumber);
         appointment.setStatus("CONFIRMED");
 
-        return appointmentRepository.save(appointment);
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        createAppointmentNotification(savedAppointment);
+
+        return savedAppointment;
+    }
+
+    private void createAppointmentNotification(Appointment appointment) {
+        try {
+            String doctorName = "Doctor";
+            if (appointment.getDoctorId() != null && doctorRepository != null) {
+                Optional<Doctor> doctorOpt = doctorRepository.findById(appointment.getDoctorId());
+                if (doctorOpt.isPresent()) {
+                    Doctor doc = doctorOpt.get();
+                    String title = (doc.getTitle() != null && !doc.getTitle().isEmpty()) ? doc.getTitle() : "Dr.";
+                    String firstName = doc.getFirstName() != null ? doc.getFirstName() : "";
+                    String lastName = doc.getLastName() != null ? doc.getLastName() : "";
+                    String fullName = (title + " " + firstName + " " + lastName).trim();
+                    if (!fullName.isEmpty()) {
+                        doctorName = fullName;
+                    }
+                }
+            }
+
+            Notification notification = new Notification();
+            notification.setUserId(appointment.getPatientId());
+            notification.setTitle("Appointment Booked Successfully");
+            notification.setDoctorId(appointment.getDoctorId());
+            notification.setDoctorName(doctorName);
+            notification.setScheduleId(appointment.getScheduleId());
+            notification.setScheduleType("PHYSICAL");
+            notification.setDate(appointment.getDate());
+            notification.setTime(appointment.getTime());
+            notification.setHospitalId(appointment.getHospitalId());
+            notification.setRead(false);
+            notification.setCreatedAt(LocalDateTime.now());
+
+            String dateStr = appointment.getDate() != null ? appointment.getDate() : "";
+            String timeStr = appointment.getTime() != null ? appointment.getTime() : "";
+            String message = "Your physical appointment with " + doctorName + " has been successfully booked for " + dateStr + (timeStr.isEmpty() ? "" : " at " + timeStr) + ".";
+            notification.setMessage(message);
+
+            if (notificationRepository != null) {
+                notificationRepository.save(notification);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to create appointment notification: " + e.getMessage());
+        }
     }
 
     public List<Appointment> getAppointmentsForPatient(String patientId) {
