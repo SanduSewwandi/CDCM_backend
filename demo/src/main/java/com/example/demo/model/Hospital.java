@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 
 @Document(collection = "hospitals")
 public class Hospital {
@@ -20,6 +21,16 @@ public class Hospital {
     private String licenseNumber;
     private String managerName;
     private String location;
+
+    private boolean verified = false;
+
+    private String verificationCode;
+
+    private Date verificationExpiry;
+
+    private boolean mustChangePassword = true;
+
+    private String profileImage;
 
     // Password reset
     private String resetToken;
@@ -108,5 +119,45 @@ public class Hospital {
 
     public void setLocation(String location) {  // <-- Add this setter
         this.location = location;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
+
+    public String getVerificationCode() {
+        return verificationCode;
+    }
+
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
+    }
+
+    public Date getVerificationExpiry() {
+        return verificationExpiry;
+    }
+
+    public void setVerificationExpiry(Date verificationExpiry) {
+        this.verificationExpiry = verificationExpiry;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public void setMustChangePassword(boolean mustChangePassword) {
+        this.mustChangePassword = mustChangePassword;
+    }
+
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(String profileImage) {
+        this.profileImage = profileImage;
     }
 }

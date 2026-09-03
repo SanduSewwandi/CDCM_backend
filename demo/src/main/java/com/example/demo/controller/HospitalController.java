@@ -7,6 +7,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import com.example.demo.dto.HospitalPasswordChangeRequest;
+import jakarta.validation.Valid;
+import java.security.Principal;
+import java.util.Map;
+import com.example.demo.dto.HospitalProfileDTO;
+import java.security.Principal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/hospitals")
@@ -44,5 +51,67 @@ public class HospitalController {
             e.printStackTrace();
             return ResponseEntity.status(500).build();
         }
+    }
+
+    @PutMapping("/first-login-password")
+    public ResponseEntity<?> changeFirstLoginPassword(
+            Principal principal,
+            @Valid @RequestBody HospitalPasswordChangeRequest request) {
+
+        if (principal == null) {
+            return ResponseEntity.status(401)
+                    .body(Map.of("message", "Authentication required"));
+        }
+
+        hospitalService.changeFirstLoginPassword(
+                principal.getName(),
+                request.getNewPassword()
+        );
+
+        return ResponseEntity.ok(
+                Map.of("message", "Password changed successfully")
+        );
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyProfile(
+            Principal principal) {
+
+        if (principal == null) {
+            return ResponseEntity.status(401)
+                    .body(Map.of(
+                            "message",
+                            "Authentication required"
+                    ));
+        }
+
+        HospitalProfileDTO profile =
+                hospitalService.getMyProfile(
+                        principal.getName()
+                );
+
+        return ResponseEntity.ok(profile);
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateMyProfile(
+            Principal principal,
+            @RequestBody HospitalProfileDTO request) {
+
+        if (principal == null) {
+            return ResponseEntity.status(401)
+                    .body(Map.of(
+                            "message",
+                            "Authentication required"
+                    ));
+        }
+
+        HospitalProfileDTO updated =
+                hospitalService.updateMyProfile(
+                        principal.getName(),
+                        request
+                );
+
+        return ResponseEntity.ok(updated);
     }
 }
