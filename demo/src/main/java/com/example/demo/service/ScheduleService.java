@@ -4,16 +4,12 @@ import com.example.demo.dto.ScheduleRequest;
 import com.example.demo.model.Schedule;
 import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
-import com.example.demo.repository.ScheduleRepository;
-import com.example.demo.repository.DoctorRepository;
-import com.example.demo.repository.HospitalRepository;
+import com.example.demo.repository.*;
 import com.example.demo.model.Appointment;
-import com.example.demo.repository.AppointmentRepository;
 
 import org.springframework.stereotype.Service;
 import com.example.demo.model.Notification;
-import com.example.demo.repository.NotificationRepository;
-
+import com.example.demo.model.Patient;
 
 import java.util.List;
 
@@ -25,19 +21,26 @@ public class ScheduleService {
     private final HospitalRepository hospitalRepository;
     private final NotificationRepository notificationRepository;
     private final AppointmentRepository appointmentRepository;
+    private final PatientRepository patientRepository;
+    private final SmsService smsService;
+
 
     public ScheduleService(
             ScheduleRepository scheduleRepository,
             DoctorRepository doctorRepository,
             HospitalRepository hospitalRepository,
             NotificationRepository notificationRepository,
-            AppointmentRepository appointmentRepository
+            AppointmentRepository appointmentRepository,
+            PatientRepository patientRepository,
+            SmsService smsService
     ) {
         this.scheduleRepository = scheduleRepository;
         this.doctorRepository = doctorRepository;
         this.hospitalRepository = hospitalRepository;
         this.notificationRepository = notificationRepository;
         this.appointmentRepository = appointmentRepository;
+        this.patientRepository = patientRepository;
+        this.smsService = smsService;
     }
 
 
@@ -106,79 +109,488 @@ public class ScheduleService {
         return scheduleRepository.save(schedule);
     }
 
+    // ----------------- CANCEL SCHEDULE -----------------
     public Schedule cancelSchedule(String id) {
+
         try {
 
+            // =========================================================
+            // 1. FIND SCHEDULE
+            // =========================================================
+
             Schedule schedule = scheduleRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Schedule not found with id: " + id
+                            )
+                    );
 
-            schedule.setStatus("CANCELLED");
-            Schedule updatedSchedule = scheduleRepository.save(schedule);
 
+            // =========================================================
+            // 2. ONLY ACCEPTED SCHEDULE CAN BE CANCELLED
+            // =========================================================
 
-            Doctor doctor = doctorRepository.findById(schedule.getDoctorId()).orElse(null);
-            Hospital hospital = hospitalRepository.findById(schedule.getHospitalId()).orElse(null);
+            if (!"ACCEPTED".equalsIgnoreCase(schedule.getStatus())) {
 
-            String doctorName = "Doctor";
-            if (doctor != null) {
-                doctorName = "Dr. " + doctor.getFirstName() + " " + doctor.getLastName();
+                throw new RuntimeException(
+                        "Only accepted schedules can be cancelled."
+                );
             }
 
+
+            // =========================================================
+            // 3. GET DOCTOR INFORMATION
+            // =========================================================
+
+            Doctor doctor = doctorRepository
+                    .findById(schedule.getDoctorId())
+                    .orElse(null);
+
+            String doctorName = "Doctor";
+
+            if (doctor != null) {
+
+                doctorName =
+                        "Dr. "
+                                + doctor.getFirstName()
+                                + " "
+                                + doctor.getLastName();
+            }
+
+
+            // =========================================================
+            // 4. GET HOSPITAL INFORMATION
+            // =========================================================
+
+            Hospital hospital = hospitalRepository
+                    .findById(schedule.getHospitalId())
+                    .orElse(null);
+
             String hospitalName = "the hospital";
+
             if (hospital != null) {
                 hospitalName = hospital.getName();
             }
 
 
-            List<Appointment> appointments =
-                    appointmentRepository.findByScheduleId(schedule.getId());
+            // =========================================================
+            // 5. DETERMINE SCHEDULE TYPE
+            // =========================================================
 
-            for (Appointment appt : appointments) {
+            boolean isVideo =
+                    "VIDEO".equalsIgnoreCase(schedule.getType());
 
-                Notification patientNotification = new Notification();
+            String appointmentType;
 
-                patientNotification.setUserId(appt.getPatientId());
-                patientNotification.setHospitalId(schedule.getHospitalId());
-                patientNotification.setScheduleId(schedule.getId());
-
-                patientNotification.setScheduleType(schedule.getType());
-                patientNotification.setDate(schedule.getDate());
-                patientNotification.setTime(schedule.getStartTime() + " - " + schedule.getEndTime());
-                patientNotification.setDoctorId(schedule.getDoctorId());
-                patientNotification.setDoctorName(doctorName);
-
-                patientNotification.setMessage(
-                        "Your appointment with " + doctorName +
-                                " on " + schedule.getDate() +
-                                " has been cancelled by " + hospitalName + "."
-                );
-
-                patientNotification.setRead(false);
-
-                notificationRepository.save(patientNotification);
+            if (isVideo) {
+                appointmentType = "video consultation";
+            } else {
+                appointmentType = "appointment";
             }
 
 
-            Notification hospitalNotification = new Notification();
-            hospitalNotification.setUserId(schedule.getHospitalId());
+            // =========================================================
+            // 6. CANCEL THE SCHEDULE
+            // =========================================================
+
+            schedule.setStatus("CANCELLED");
+
+            Schedule updatedSchedule =
+                    scheduleRepository.save(schedule);
+
+
+            // =========================================================
+            // 7. NOTIFY HOSPITAL
+            // Doctor → Hospital
+            // =========================================================
+
+            Notification hospitalNotification =
+                    new Notification();
+
+            hospitalNotification.setUserId(
+                    schedule.getHospitalId()
+            );
+
+            hospitalNotification.setHospitalId(
+                    schedule.getHospitalId()
+            );
+
+            hospitalNotification.setScheduleId(
+                    schedule.getId()
+            );
+
+            hospitalNotification.setScheduleType(
+                    schedule.getType()
+            );
+
+            hospitalNotification.setDate(
+                    schedule.getDate()
+            );
+
+            hospitalNotification.setTime(
+                    schedule.getStartTime()
+                            + " - "
+                            + schedule.getEndTime()
+            );
+
+            hospitalNotification.setDoctorId(
+                    schedule.getDoctorId()
+            );
+
+            hospitalNotification.setDoctorName(
+                    doctorName
+            );
+
+
+            // Different title for video / physical
+            if (isVideo) {
+
+                hospitalNotification.setTitle(
+                        "Video Consultation Cancelled"
+                );
+
+            } else {
+
+                hospitalNotification.setTitle(
+                        "Appointment Schedule Cancelled"
+                );
+            }
+
+
             hospitalNotification.setMessage(
-                    doctorName + " has cancelled the schedule on "
+                    doctorName
+                            + " has cancelled the "
+                            + appointmentType
+                            + " schedule on "
                             + schedule.getDate()
-                            + " from " + schedule.getStartTime()
-                            + " to " + schedule.getEndTime()
-                            + " at " + hospitalName + "."
+                            + " from "
+                            + schedule.getStartTime()
+                            + " to "
+                            + schedule.getEndTime()
+                            + "."
             );
 
             hospitalNotification.setRead(false);
-            notificationRepository.save(hospitalNotification);
+
+            notificationRepository.save(
+                    hospitalNotification
+            );
+
+
+            // =========================================================
+            // 8. FIND ALL APPOINTMENTS FOR THIS SCHEDULE
+            // =========================================================
+
+            List<Appointment> appointments =
+                    appointmentRepository.findByScheduleId(
+                            schedule.getId()
+                    );
+
+
+            System.out.println(
+                    "=============================================="
+            );
+
+            System.out.println(
+                    "Cancelled Schedule ID: "
+                            + schedule.getId()
+            );
+
+            System.out.println(
+                    "Schedule Type: "
+                            + schedule.getType()
+            );
+
+            System.out.println(
+                    "Appointments found: "
+                            + appointments.size()
+            );
+
+
+            // =========================================================
+// 9. PROCESS PAID AND PENDING APPOINTMENTS
+// =========================================================
+
+            for (Appointment appt : appointments) {
+
+                System.out.println(
+                        "Appointment ID: "
+                                + appt.getId()
+                                + " | Patient ID: "
+                                + appt.getPatientId()
+                                + " | Status: "
+                                + appt.getStatus()
+                                + " | Payment Status: "
+                                + appt.getPaymentStatus()
+                                + " | Is Paid: "
+                                + appt.isPaid()
+                );
+
+                // Determine payment status
+                boolean isPaid =
+                        appt.isPaid()
+                                || "PAID".equalsIgnoreCase(
+                                appt.getPaymentStatus()
+                        );
+
+                boolean isPending =
+                        "PENDING".equalsIgnoreCase(
+                                appt.getPaymentStatus()
+                        );
+
+                // Only process PAID or PENDING appointments
+                if (!isPaid && !isPending) {
+                    System.out.println(
+                            "Skipping appointment because payment status is: "
+                                    + appt.getPaymentStatus()
+                    );
+                    continue;
+                }
+
+
+                // =========================================================
+                // 10. CANCEL PATIENT APPOINTMENT
+                // =========================================================
+
+                appt.setStatus("CANCELLED");
+
+                appointmentRepository.save(appt);
+
+
+                // =========================================================
+                // 11. FIND PATIENT
+                // =========================================================
+
+                Patient patient = patientRepository
+                        .findById(appt.getPatientId())
+                        .orElse(null);
+
+                if (patient == null) {
+
+                    System.out.println(
+                            "Patient not found: "
+                                    + appt.getPatientId()
+                    );
+
+                    continue;
+                }
+
+
+                // =========================================================
+                // 12. GET PATIENT PHONE NUMBER
+                // =========================================================
+
+                String phoneNumber =
+                        patient.getContactNumber();
+
+                if (phoneNumber == null
+                        || phoneNumber.trim().isEmpty()) {
+
+                    System.out.println(
+                            "Patient has no contact number: "
+                                    + patient.getId()
+                    );
+
+                    continue;
+                }
+
+
+                // =========================================================
+                // 13. CREATE PATIENT IN-APP NOTIFICATION
+                // Hospital → Patient
+                // =========================================================
+
+                Notification patientNotification =
+                        new Notification();
+
+                patientNotification.setUserId(
+                        appt.getPatientId()
+                );
+
+                patientNotification.setHospitalId(
+                        schedule.getHospitalId()
+                );
+
+                patientNotification.setScheduleId(
+                        schedule.getId()
+                );
+
+                patientNotification.setScheduleType(
+                        schedule.getType()
+                );
+
+                patientNotification.setDate(
+                        schedule.getDate()
+                );
+
+                patientNotification.setTime(
+                        schedule.getStartTime()
+                                + " - "
+                                + schedule.getEndTime()
+                );
+
+                patientNotification.setDoctorId(
+                        schedule.getDoctorId()
+                );
+
+                patientNotification.setDoctorName(
+                        doctorName
+                );
+
+
+                // =========================================================
+                // 14. CREATE NOTIFICATION MESSAGE
+                // =========================================================
+
+                if (isVideo) {
+
+                    patientNotification.setTitle(
+                            "Video Consultation Cancelled"
+                    );
+
+                    patientNotification.setMessage(
+                            "Your video consultation with "
+                                    + doctorName
+                                    + " on "
+                                    + schedule.getDate()
+                                    + " from "
+                                    + schedule.getStartTime()
+                                    + " to "
+                                    + schedule.getEndTime()
+                                    + " has been cancelled by "
+                                    + hospitalName
+                                    + "."
+                    );
+
+                } else {
+
+                    patientNotification.setTitle(
+                            "Appointment Cancelled"
+                    );
+
+                    patientNotification.setMessage(
+                            "Your appointment with "
+                                    + doctorName
+                                    + " on "
+                                    + schedule.getDate()
+                                    + " from "
+                                    + schedule.getStartTime()
+                                    + " to "
+                                    + schedule.getEndTime()
+                                    + " has been cancelled by "
+                                    + hospitalName
+                                    + "."
+                    );
+                }
+
+                patientNotification.setRead(false);
+
+                notificationRepository.save(
+                        patientNotification
+                );
+
+
+                // =========================================================
+                // 15. CREATE SMS MESSAGE
+                // =========================================================
+
+                String smsMessage;
+
+                if (isPaid) {
+
+                    smsMessage =
+                            "Dear "
+                                    + patient.getFirstName()
+                                    + ", your "
+                                    + appointmentType
+                                    + " with "
+                                    + doctorName
+                                    + " on "
+                                    + schedule.getDate()
+                                    + " at "
+                                    + schedule.getStartTime()
+                                    + " has been cancelled by "
+                                    + hospitalName
+                                    + ". Your payment has already been received. "
+                                    + "Please contact the hospital regarding your refund.";
+
+                } else {
+
+                    smsMessage =
+                            "Dear "
+                                    + patient.getFirstName()
+                                    + ", your "
+                                    + appointmentType
+                                    + " with "
+                                    + doctorName
+                                    + " on "
+                                    + schedule.getDate()
+                                    + " at "
+                                    + schedule.getStartTime()
+                                    + " has been cancelled by "
+                                    + hospitalName
+                                    + ". Please contact the hospital for more information.";
+                }
+
+
+                // =========================================================
+                // 16. SEND SMS
+                // =========================================================
+
+                try {
+
+                    smsService.sendSms(
+                            phoneNumber,
+                            smsMessage
+                    );
+
+                    System.out.println(
+                            "SMS sent successfully to: "
+                                    + phoneNumber
+                    );
+
+                } catch (Exception smsException) {
+
+                    // SMS failure should NOT stop schedule cancellation
+
+                    System.err.println(
+                            "Failed to send SMS to "
+                                    + phoneNumber
+                                    + ": "
+                                    + smsException.getMessage()
+                    );
+                }
+
+
+                System.out.println(
+                        "Patient appointment cancelled: "
+                                + appt.getId()
+                );
+            }
+
+
+            System.out.println(
+                    "=============================================="
+            );
+
+
+            // =========================================================
+            // 14. RETURN UPDATED SCHEDULE
+            // =========================================================
 
             return updatedSchedule;
 
+
         } catch (Exception e) {
-            throw new RuntimeException("Error while cancelling schedule: " + e.getMessage());
+
+            throw new RuntimeException(
+                    "Error while cancelling schedule: "
+                            + e.getMessage()
+            );
         }
     }
-    // ----------------- HELPER METHOD -----------------
+
+
 
     private void populateDoctorAndHospitalInfo(List<Schedule> schedules) {
         for (Schedule s : schedules) {

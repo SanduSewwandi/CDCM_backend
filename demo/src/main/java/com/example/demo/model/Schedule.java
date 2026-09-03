@@ -20,7 +20,7 @@ public class Schedule {
     private String endTime;
     private String meetingLink;
 
-    private String status; // PENDING, ACCEPTED, REJECTED
+    private String status; // PENDING, ACCEPTED, REJECTED, CANCELLED
 
     private String doctorName;
     private String specialty;

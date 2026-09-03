@@ -38,4 +38,33 @@ public class EmailService {
 
         mailSender.send(msg);
     }
+
+    public void sendHospitalWelcomeEmail(
+            String to,
+            String hospitalName,
+            String temporaryPassword) {
+
+        SimpleMailMessage message =
+                new SimpleMailMessage();
+
+        message.setTo(to);
+
+        message.setSubject(
+                "Your CDCM Hospital Account"
+        );
+
+        message.setText(
+                "Hello " + hospitalName + ",\n\n" +
+                        "Your hospital account has been created.\n\n" +
+                        "Login email: " + to + "\n" +
+                        "Temporary password: " +
+                        temporaryPassword + "\n\n" +
+                        "Please log in to the CDCM system.\n" +
+                        "After login, request a verification code.\n" +
+                        "You must verify your email and create a new password " +
+                        "before accessing the hospital dashboard."
+        );
+
+        mailSender.send(message);
+    }
 }
