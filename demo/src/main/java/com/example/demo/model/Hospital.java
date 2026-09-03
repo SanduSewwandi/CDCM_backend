@@ -10,7 +10,6 @@ import java.util.Date;
 public class Hospital {
 
     @Id
-
     private String id;
 
     private String name;
@@ -21,27 +20,23 @@ public class Hospital {
     private String licenseNumber;
     private String managerName;
     private String location;
-
-    private boolean verified = false;
-
-    private String verificationCode;
-
-    private Date verificationExpiry;
-
-    private boolean mustChangePassword = true;
-
     private String profileImage;
+
+    // Email verification
+    private boolean verified = false;
+    private String verificationCode;
+    private Date verificationExpiry;
+    private Date verificationLastSentAt;
+
+    // First login
+    private boolean mustChangePassword = true;
 
     // Password reset
     private String resetToken;
     private LocalDateTime resetTokenExpiry;
 
-
-    public Hospital() {}
-
-    // ========================
-    // Getters and Setters
-    // ========================
+    public Hospital() {
+    }
 
     public String getId() {
         return id;
@@ -71,7 +66,8 @@ public class Hospital {
         return password;
     }
 
-    public void setPassword(String password) {
+    public void setPassword(
+            String password) {
         this.password = password;
     }
 
@@ -79,15 +75,18 @@ public class Hospital {
         return contactNumber;
     }
 
-    public void setContactNumber(String contactNumber) {
-        this.contactNumber = contactNumber;
+    public void setContactNumber(
+            String contactNumber) {
+        this.contactNumber =
+                contactNumber;
     }
 
     public String getAddress() {
         return address;
     }
 
-    public void setAddress(String address) {
+    public void setAddress(
+            String address) {
         this.address = address;
     }
 
@@ -95,37 +94,47 @@ public class Hospital {
         return licenseNumber;
     }
 
-    public void setLicenseNumber(String licenseNumber) {
-        this.licenseNumber = licenseNumber;
+    public void setLicenseNumber(
+            String licenseNumber) {
+        this.licenseNumber =
+                licenseNumber;
     }
 
     public String getManagerName() {
         return managerName;
     }
 
-    public void setManagerName(String managerName) {
-        this.managerName = managerName;
+    public void setManagerName(
+            String managerName) {
+        this.managerName =
+                managerName;
     }
 
-    public String getResetToken() { return resetToken; }
-    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
-
-    public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
-    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
-
-    public String getLocation() {   // <-- Add this getter
+    public String getLocation() {
         return location;
     }
 
-    public void setLocation(String location) {  // <-- Add this setter
+    public void setLocation(
+            String location) {
         this.location = location;
+    }
+
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(
+            String profileImage) {
+        this.profileImage =
+                profileImage;
     }
 
     public boolean isVerified() {
         return verified;
     }
 
-    public void setVerified(boolean verified) {
+    public void setVerified(
+            boolean verified) {
         this.verified = verified;
     }
 
@@ -133,31 +142,58 @@ public class Hospital {
         return verificationCode;
     }
 
-    public void setVerificationCode(String verificationCode) {
-        this.verificationCode = verificationCode;
+    public void setVerificationCode(
+            String verificationCode) {
+        this.verificationCode =
+                verificationCode;
     }
 
     public Date getVerificationExpiry() {
         return verificationExpiry;
     }
 
-    public void setVerificationExpiry(Date verificationExpiry) {
-        this.verificationExpiry = verificationExpiry;
+    public void setVerificationExpiry(
+            Date verificationExpiry) {
+        this.verificationExpiry =
+                verificationExpiry;
+    }
+
+    public Date getVerificationLastSentAt() {
+        return verificationLastSentAt;
+    }
+
+    public void setVerificationLastSentAt(
+            Date verificationLastSentAt) {
+        this.verificationLastSentAt =
+                verificationLastSentAt;
     }
 
     public boolean isMustChangePassword() {
         return mustChangePassword;
     }
 
-    public void setMustChangePassword(boolean mustChangePassword) {
-        this.mustChangePassword = mustChangePassword;
+    public void setMustChangePassword(
+            boolean mustChangePassword) {
+        this.mustChangePassword =
+                mustChangePassword;
     }
 
-    public String getProfileImage() {
-        return profileImage;
+    public String getResetToken() {
+        return resetToken;
     }
 
-    public void setProfileImage(String profileImage) {
-        this.profileImage = profileImage;
+    public void setResetToken(
+            String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public LocalDateTime getResetTokenExpiry() {
+        return resetTokenExpiry;
+    }
+
+    public void setResetTokenExpiry(
+            LocalDateTime resetTokenExpiry) {
+        this.resetTokenExpiry =
+                resetTokenExpiry;
     }
 }

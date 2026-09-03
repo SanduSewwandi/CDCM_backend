@@ -1,22 +1,25 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.HospitalProfileDTO;
 import com.example.demo.dto.HospitalRegisterRequest;
 import com.example.demo.model.Hospital;
-import com.example.demo.model.Patient;
 import com.example.demo.repository.HospitalRepository;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import com.example.demo.service.EmailService;
 import java.util.Date;
-import com.example.demo.dto.HospitalProfileDTO;
 
 @Service
 public class HospitalService {
+
+    private static final SecureRandom SECURE_RANDOM =
+            new SecureRandom();
 
     private final HospitalRepository hospitalRepository;
     private final PasswordEncoder passwordEncoder;
@@ -29,66 +32,119 @@ public class HospitalService {
         this.emailService = emailService;
     }
 
+    private String generateVerificationCode() {
+
+        int number =
+                100000 +
+                        SECURE_RANDOM.nextInt(900000);
+
+        return String.valueOf(number);
+    }
+
     // =========================
     // =========================
     // REGISTER HOSPITAL (Admin)
-    public Hospital registerHospital(HospitalRegisterRequest request) {
+    public Hospital registerHospital(
+            HospitalRegisterRequest request) {
 
-        if (hospitalRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new RuntimeException("Hospital email is already registered");
+        String email =
+                request.getEmail()
+                        .trim()
+                        .toLowerCase();
+
+        if (hospitalRepository
+                .findByEmail(email)
+                .isPresent()) {
+
+            throw new RuntimeException(
+                    "Hospital email is already registered"
+            );
         }
 
         Hospital hospital = new Hospital();
 
-        hospital.setName(request.getName());
-        hospital.setEmail(request.getEmail().trim().toLowerCase());
-        hospital.setContactNumber(request.getContactNumber());
-        hospital.setAddress(request.getAddress());
-        hospital.setLicenseNumber(request.getLicenseNumber());
-        hospital.setManagerName(request.getManagerName());
+        hospital.setName(
+                request.getName()
+        );
 
+        hospital.setEmail(email);
+
+        hospital.setContactNumber(
+                request.getContactNumber()
+        );
+
+        hospital.setAddress(
+                request.getAddress()
+        );
+
+        hospital.setLicenseNumber(
+                request.getLicenseNumber()
+        );
+
+        hospital.setManagerName(
+                request.getManagerName()
+        );
+
+        // Encrypt the temporary password
         hospital.setPassword(
-                passwordEncoder.encode(request.getPassword())
+                passwordEncoder.encode(
+                        request.getPassword()
+                )
         );
 
-        String otp = String.valueOf(
-                (int) (Math.random() * 900000) + 100000
-        );
-
+        // Initial onboarding state
         hospital.setVerified(false);
-        hospital.setVerificationCode(otp);
-        hospital.setVerificationExpiry(
-                new Date(System.currentTimeMillis() + 5 * 60 * 1000)
-        );
+
         hospital.setMustChangePassword(true);
 
-        Hospital savedHospital = hospitalRepository.save(hospital);
+        // Do not create OTP during registration
+        hospital.setVerificationCode(null);
+        hospital.setVerificationExpiry(null);
+        hospital.setVerificationLastSentAt(null);
 
+        Hospital savedHospital =
+                hospitalRepository.save(hospital);
+
+        // Email contains login information only
         emailService.sendHospitalWelcomeEmail(
                 hospital.getEmail(),
                 hospital.getName(),
-                request.getPassword(),
-                otp
+                request.getPassword()
         );
 
         return savedHospital;
     }
 
+
     // =========================
     // LOGIN HOSPITAL
     // =========================
-    public Hospital loginHospital(String email, String password) {
+    public Hospital loginHospital(
+            String email,
+            String password) {
+
+        if (email == null ||
+                password == null) {
+            return null;
+        }
 
         Optional<Hospital> optional =
-                hospitalRepository.findByEmail(email);
+                hospitalRepository.findByEmail(
+                        email.trim()
+                                .toLowerCase()
+                );
 
-        if (optional.isPresent()) {
-            Hospital hospital = optional.get();
+        if (optional.isEmpty()) {
+            return null;
+        }
 
-            if (passwordEncoder.matches(password,
-                    hospital.getPassword())) {
-                return hospital;
-            }
+        Hospital hospital = optional.get();
+
+        if (passwordEncoder.matches(
+                password,
+                hospital.getPassword())) {
+
+            return hospital;
         }
 
         return null;
@@ -135,10 +191,15 @@ public class HospitalService {
         return true;
     }
 
-    public String verifyOtp(String email, String otp) {
+    public String verifyOtp(
+            String email,
+            String otp) {
 
         Optional<Hospital> optional =
-                hospitalRepository.findByEmail(email.trim().toLowerCase());
+                hospitalRepository.findByEmail(
+                        email.trim()
+                                .toLowerCase()
+                );
 
         if (optional.isEmpty()) {
             return "Hospital not found";
@@ -147,22 +208,33 @@ public class HospitalService {
         Hospital hospital = optional.get();
 
         if (hospital.isVerified()) {
-            return "Already verified";
+            return "Email is already verified";
         }
 
-        if (hospital.getVerificationCode() == null ||
-                !hospital.getVerificationCode().equals(otp)) {
-            return "Invalid OTP";
+        if (hospital.getVerificationCode()
+                == null) {
+
+            return "Please request a verification code first";
         }
 
-        if (hospital.getVerificationExpiry() == null ||
-                hospital.getVerificationExpiry().before(new Date())) {
-            return "OTP expired";
+        if (!hospital.getVerificationCode()
+                .equals(otp)) {
+
+            return "Invalid verification code";
+        }
+
+        if (hospital.getVerificationExpiry()
+                == null ||
+                hospital.getVerificationExpiry()
+                        .before(new Date())) {
+
+            return "Verification code expired";
         }
 
         hospital.setVerified(true);
         hospital.setVerificationCode(null);
         hospital.setVerificationExpiry(null);
+        hospital.setVerificationLastSentAt(null);
 
         hospitalRepository.save(hospital);
 
@@ -173,14 +245,21 @@ public class HospitalService {
             String email,
             String newPassword) {
 
-        Hospital hospital = hospitalRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new RuntimeException("Hospital not found")
-                );
+        Hospital hospital =
+                hospitalRepository
+                        .findByEmail(
+                                email.trim()
+                                        .toLowerCase()
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Hospital not found"
+                                )
+                        );
 
         if (!hospital.isVerified()) {
             throw new RuntimeException(
-                    "Please verify the hospital email first"
+                    "Please verify your email first"
             );
         }
 
@@ -191,7 +270,9 @@ public class HospitalService {
         }
 
         hospital.setPassword(
-                passwordEncoder.encode(newPassword)
+                passwordEncoder.encode(
+                        newPassword
+                )
         );
 
         hospital.setMustChangePassword(false);
@@ -262,6 +343,81 @@ public class HospitalService {
         return convertToProfileDTO(updatedHospital);
     }
 
+    public String requestVerificationCode(
+            String email) {
+
+        if (email == null || email.isBlank()) {
+            return "Authentication required";
+        }
+
+        Hospital hospital =
+                hospitalRepository
+                        .findByEmail(
+                                email.trim()
+                                        .toLowerCase()
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Hospital not found"
+                                )
+                        );
+
+        if (hospital.isVerified()) {
+            return "Email is already verified";
+        }
+
+        Date now = new Date();
+
+        Date lastSent =
+                hospital
+                        .getVerificationLastSentAt();
+
+        // Only allow one request per minute
+        if (lastSent != null) {
+
+            long elapsedMilliseconds =
+                    now.getTime()
+                            - lastSent.getTime();
+
+            long remainingMilliseconds =
+                    60_000 -
+                            elapsedMilliseconds;
+
+            if (remainingMilliseconds > 0) {
+
+                long remainingSeconds =
+                        (remainingMilliseconds + 999)
+                                / 1000;
+
+                return "Please wait "
+                        + remainingSeconds
+                        + " seconds before requesting another code";
+            }
+        }
+
+        String otp =
+                generateVerificationCode();
+
+        hospital.setVerificationCode(otp);
+
+        hospital.setVerificationExpiry(
+                new Date(
+                        System.currentTimeMillis()
+                                + 5 * 60 * 1000
+                )
+        );
+
+        hospital.setVerificationLastSentAt(now);
+
+        hospitalRepository.save(hospital);
+
+        emailService.sendOtp(
+                hospital.getEmail(),
+                otp
+        );
+
+        return "Verification code sent successfully";
+    }
     public List<Hospital> getAllHospitals() {
         return hospitalRepository.findAll();
     }
