@@ -67,4 +67,81 @@ public class EmailService {
 
         mailSender.send(message);
     }
+
+    // Appointment cancellation email
+    public void sendAppointmentCancellationEmail(
+            String to,
+            String patientName,
+            String doctorName,
+            String appointmentType,
+            String date,
+            String time,
+            String hospitalName,
+            boolean isPaid) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(to);
+
+        if (isPaid) {
+            message.setSubject("Appointment Cancelled - Payment Received");
+
+            message.setText(
+                    "Dear " + patientName + ",\n\n" +
+
+                            "We regret to inform you that your " +
+                            appointmentType +
+                            " appointment with " +
+                            doctorName +
+                            " has been cancelled by " +
+                            hospitalName +
+                            ".\n\n" +
+
+                            "Appointment Details:\n" +
+                            "Doctor: " + doctorName + "\n" +
+                            "Date: " + date + "\n" +
+                            "Time: " + time + "\n" +
+                            "Type: " + appointmentType + "\n\n" +
+
+                            "Your payment has already been received for this appointment.\n" +
+                            "Please contact " + hospitalName +
+                            " regarding the refund process.\n\n" +
+
+                            "We apologize for any inconvenience caused.\n\n" +
+                            "Thank you,\n" +
+                            "CDCM System"
+            );
+
+        } else {
+            message.setSubject("Appointment Cancelled");
+
+            message.setText(
+                    "Dear " + patientName + ",\n\n" +
+
+                            "We regret to inform you that your " +
+                            appointmentType +
+                            " appointment with " +
+                            doctorName +
+                            " has been cancelled by " +
+                            hospitalName +
+                            ".\n\n" +
+
+                            "Appointment Details:\n" +
+                            "Doctor: " + doctorName + "\n" +
+                            "Date: " + date + "\n" +
+                            "Time: " + time + "\n" +
+                            "Type: " + appointmentType + "\n\n" +
+
+                            "Please contact " + hospitalName +
+                            " for more information.\n\n" +
+
+                            "We apologize for any inconvenience caused.\n\n" +
+
+                            "Thank you,\n" +
+                            "CDCM System"
+            );
+        }
+
+        mailSender.send(message);
+    }
 }
