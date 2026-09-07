@@ -12,6 +12,8 @@ import com.example.demo.repository.NotificationRepository;
 import com.example.demo.repository.PatientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.example.demo.model.Conversation;
+import com.example.demo.service.ChatService;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -37,6 +39,10 @@ public class AppointmentService {
     @Autowired
     private DoctorRepository doctorRepository;
 
+    @Autowired
+    private ChatService chatService;
+
+
     public Appointment bookAppointment(Appointment appointment) {
         if (appointmentRepository.existsByPatientIdAndDoctorIdAndScheduleId(
                 appointment.getPatientId(),
@@ -52,6 +58,15 @@ public class AppointmentService {
         appointment.setStatus("CONFIRMED");
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
+
+
+        // Create chat conversation
+        chatService.createConversation(
+                savedAppointment.getId(),
+                savedAppointment.getPatientId(),
+                savedAppointment.getDoctorId()
+        );
+
 
         createAppointmentNotification(savedAppointment);
 
