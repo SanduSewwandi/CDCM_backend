@@ -55,20 +55,14 @@ public class AppointmentService {
         String formattedApptNumber = String.format("APT-%03d", chosenNumber);
 
         appointment.setAppointmentNumber(formattedApptNumber);
-        appointment.setStatus("CONFIRMED");
+        appointment.setStatus("PENDING");
+        appointment.setPaymentStatus("PENDING");
+        appointment.setPaid(false);
+        if (appointment.getAmount() <= 0) {
+            appointment.setAmount(1000.00);
+        }
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
-
-
-        // Create chat conversation
-        chatService.createConversation(
-                savedAppointment.getId(),
-                savedAppointment.getPatientId(),
-                savedAppointment.getDoctorId()
-        );
-
-
-        createAppointmentNotification(savedAppointment);
 
         return savedAppointment;
     }
