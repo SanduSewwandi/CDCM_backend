@@ -13,6 +13,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import com.example.demo.service.ChatService;
 
 import java.util.Optional;
 
@@ -30,6 +31,9 @@ class DemoApplicationTests {
 
 	@Mock
 	private DoctorRepository doctorRepository;
+
+	@Mock
+	private ChatService chatService;
 
 	@InjectMocks
 	private AppointmentService appointmentService;
