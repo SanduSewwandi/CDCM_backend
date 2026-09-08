@@ -64,6 +64,13 @@ public class AppointmentService {
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
 
+// Create chat conversation for this appointment
+        chatService.createConversation(
+                savedAppointment.getId(),
+                savedAppointment.getPatientId(),
+                savedAppointment.getDoctorId()
+        );
+
         return savedAppointment;
     }
 
