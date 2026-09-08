@@ -23,6 +23,7 @@ public class ScheduleService {
     private final AppointmentRepository appointmentRepository;
     private final PatientRepository patientRepository;
     private final SmsService smsService;
+    private final EmailService emailService;
 
 
     public ScheduleService(
@@ -32,7 +33,8 @@ public class ScheduleService {
             NotificationRepository notificationRepository,
             AppointmentRepository appointmentRepository,
             PatientRepository patientRepository,
-            SmsService smsService
+            SmsService smsService,
+            EmailService emailService
     ) {
         this.scheduleRepository = scheduleRepository;
         this.doctorRepository = doctorRepository;
@@ -41,6 +43,7 @@ public class ScheduleService {
         this.appointmentRepository = appointmentRepository;
         this.patientRepository = patientRepository;
         this.smsService = smsService;
+        this.emailService = emailService;
     }
 
 
@@ -377,21 +380,18 @@ public class ScheduleService {
 
 
                 // =========================================================
-                // 12. GET PATIENT PHONE NUMBER
-                // =========================================================
+                // 12. GET PATIENT CONTACT DETAILS
+               // =========================================================
 
-                String phoneNumber =
-                        patient.getContactNumber();
+                String phoneNumber = patient.getContactNumber();
+                String email = patient.getEmail();
 
-                if (phoneNumber == null
-                        || phoneNumber.trim().isEmpty()) {
+                if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
 
                     System.out.println(
                             "Patient has no contact number: "
                                     + patient.getId()
                     );
-
-                    continue;
                 }
 
 
@@ -532,34 +532,88 @@ public class ScheduleService {
                                     + ". Please contact the hospital for more information.";
                 }
 
+                  // =========================================================
+                 // 16. SEND SMS
+                 // =========================================================
 
-                // =========================================================
-                // 16. SEND SMS
-                // =========================================================
+                if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
 
-                try {
+                    try {
 
-                    smsService.sendSms(
-                            phoneNumber,
-                            smsMessage
-                    );
+                        smsService.sendSms(
+                                phoneNumber,
+                                smsMessage
+                        );
+
+                        System.out.println(
+                                "SMS sent successfully to: "
+                                        + phoneNumber
+                        );
+
+                    } catch (Exception smsException) {
+
+                        // SMS failure should NOT stop schedule cancellation
+
+                        System.err.println(
+                                "Failed to send SMS to "
+                                        + phoneNumber
+                                        + ": "
+                                        + smsException.getMessage()
+                        );
+                    }
+
+                } else {
 
                     System.out.println(
-                            "SMS sent successfully to: "
-                                    + phoneNumber
-                    );
-
-                } catch (Exception smsException) {
-
-                    // SMS failure should NOT stop schedule cancellation
-
-                    System.err.println(
-                            "Failed to send SMS to "
-                                    + phoneNumber
-                                    + ": "
-                                    + smsException.getMessage()
+                            "SMS skipped because patient has no phone number."
                     );
                 }
+
+                // =========================================================
+// 17. SEND EMAIL
+// =========================================================
+
+                if (email != null && !email.trim().isEmpty()) {
+
+                    try {
+
+                        emailService.sendAppointmentCancellationEmail(
+                                email,
+                                patient.getFirstName(),
+                                doctorName,
+                                appointmentType,
+                                schedule.getDate(),
+                                schedule.getStartTime(),
+                                hospitalName,
+                                isPaid
+                        );
+
+                        System.out.println(
+                                "Cancellation email sent successfully to: "
+                                        + email
+                        );
+
+                    } catch (Exception emailException) {
+
+                        // Email failure should NOT stop schedule cancellation
+
+                        System.err.println(
+                                "Failed to send cancellation email to "
+                                        + email
+                                        + ": "
+                                        + emailException.getMessage()
+                        );
+                    }
+
+                } else {
+
+                    System.out.println(
+                            "Patient has no email address: "
+                                    + patient.getId()
+                    );
+                }
+
+
 
 
                 System.out.println(
@@ -572,6 +626,8 @@ public class ScheduleService {
             System.out.println(
                     "=============================================="
             );
+
+
 
 
             // =========================================================
