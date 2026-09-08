@@ -6,6 +6,8 @@ import com.example.demo.model.Notification;
 import com.example.demo.repository.AppointmentRepository;
 import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.NotificationRepository;
+import com.example.demo.repository.HospitalRepository;
+import com.example.demo.repository.LabTestRepository;
 import com.example.demo.service.AppointmentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
