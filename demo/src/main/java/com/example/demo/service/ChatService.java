@@ -5,8 +5,6 @@ import com.example.demo.dto.SendMessageRequest;
 import com.example.demo.model.Appointment;
 import com.example.demo.model.Conversation;
 import com.example.demo.model.Message;
-import com.example.demo.model.Doctor;
-import com.example.demo.model.Patient;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.example.demo.repository.AppointmentRepository;
@@ -14,6 +12,7 @@ import com.example.demo.repository.ConversationRepository;
 import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.MessageRepository;
 import com.example.demo.repository.PatientRepository;
+import com.example.demo.repository.HospitalRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,6 +41,9 @@ public class ChatService {
     private AppointmentRepository appointmentRepository;
 
     @Autowired
+    private HospitalRepository hospitalRepository;
+
+    @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
 
@@ -55,7 +57,9 @@ public class ChatService {
             String doctorId) {
 
         Optional<Conversation> existing =
-                conversationRepository.findByAppointmentId(appointmentId);
+                conversationRepository.findByAppointmentId(
+                        appointmentId
+                );
 
         if (existing.isPresent()) {
             return existing.get();
@@ -112,94 +116,259 @@ public class ChatService {
         ConversationResponseDTO dto =
                 new ConversationResponseDTO();
 
-        dto.setId(conversation.getId());
 
-        // MongoDB appointment ID
+        // =====================================================
+        // CONVERSATION ID
+        // =====================================================
+
+        dto.setId(
+                conversation.getId()
+        );
+
+
+        // =====================================================
+        // APPOINTMENT
+        // =====================================================
+
         dto.setAppointmentId(
                 conversation.getAppointmentId()
         );
 
-        // -----------------------------------------------------
-        // GET APPOINTMENT NUMBER
-        // -----------------------------------------------------
 
-        if (conversation.getAppointmentId() != null) {
+        if (conversation.getAppointmentId() != null &&
+                !conversation.getAppointmentId().trim().isEmpty()) {
 
             appointmentRepository
-                    .findById(conversation.getAppointmentId())
-                    .ifPresent(appointment -> {
+                    .findById(
+                            conversation.getAppointmentId()
+                    )
+                    .ifPresentOrElse(
 
-                        dto.setAppointmentNumber(
-                                appointment.getAppointmentNumber()
-                        );
-                    });
+                            appointment -> {
+
+                                // ---------------------------------
+                                // APPOINTMENT NUMBER
+                                // ---------------------------------
+
+                                dto.setAppointmentNumber(
+                                        appointment.getAppointmentNumber()
+                                );
+
+
+                                // ---------------------------------
+                                // APPOINTMENT DATE
+                                // ---------------------------------
+
+                                if (appointment.getDate() != null &&
+                                        !appointment.getDate().trim().isEmpty()) {
+
+                                    dto.setAppointmentDate(
+                                            appointment.getDate()
+                                    );
+                                }
+
+
+                                // =================================
+                                // HOSPITAL
+                                // =================================
+
+                                String hospitalId =
+                                        appointment.getHospitalId();
+
+
+                                System.out.println(
+                                        "----------------------------------------"
+                                );
+
+                                System.out.println(
+                                        "Conversation ID: " +
+                                                conversation.getId()
+                                );
+
+                                System.out.println(
+                                        "Appointment ID: " +
+                                                appointment.getId()
+                                );
+
+                                System.out.println(
+                                        "Hospital ID from Appointment: " +
+                                                hospitalId
+                                );
+
+
+                                if (hospitalId != null &&
+                                        !hospitalId.trim().isEmpty()) {
+
+
+                                    // -----------------------------
+                                    // SET HOSPITAL ID
+                                    // -----------------------------
+
+                                    dto.setHospitalId(
+                                            hospitalId
+                                    );
+
+
+                                    // -----------------------------
+                                    // FIND HOSPITAL
+                                    // -----------------------------
+
+                                    hospitalRepository
+                                            .findById(
+                                                    hospitalId
+                                            )
+                                            .ifPresentOrElse(
+
+                                                    hospital -> {
+
+                                                        String hospitalName =
+                                                                hospital.getName();
+
+
+                                                        System.out.println(
+                                                                "Hospital FOUND: " +
+                                                                        hospitalName
+                                                        );
+
+
+                                                        if (hospitalName != null &&
+                                                                !hospitalName.trim().isEmpty()) {
+
+                                                            dto.setHospitalName(
+                                                                    hospitalName
+                                                            );
+
+                                                        }
+
+                                                    },
+
+                                                    () -> {
+
+                                                        System.out.println(
+                                                                "Hospital NOT FOUND for ID: " +
+                                                                        hospitalId
+                                                        );
+
+                                                    }
+                                            );
+
+
+                                } else {
+
+                                    System.out.println(
+                                            "Appointment does NOT contain hospitalId."
+                                    );
+
+                                }
+
+
+                                System.out.println(
+                                        "----------------------------------------"
+                                );
+
+                            },
+
+                            () -> {
+
+                                System.out.println(
+                                        "Appointment NOT FOUND for ID: " +
+                                                conversation.getAppointmentId()
+                                );
+
+                            }
+                    );
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // PATIENT
-        // -----------------------------------------------------
+        // =====================================================
 
         dto.setPatientId(
                 conversation.getPatientId()
         );
 
-        if (conversation.getPatientId() != null) {
+
+        if (conversation.getPatientId() != null &&
+                !conversation.getPatientId().trim().isEmpty()) {
 
             patientRepository
-                    .findById(conversation.getPatientId())
+                    .findById(
+                            conversation.getPatientId()
+                    )
                     .ifPresent(patient -> {
 
-                        String name =
-                                ((patient.getFirstName() != null)
+                        String firstName =
+                                patient.getFirstName() != null
                                         ? patient.getFirstName()
-                                        : "")
-                                        + " "
-                                        + ((patient.getLastName() != null)
+                                        : "";
+
+                        String lastName =
+                                patient.getLastName() != null
                                         ? patient.getLastName()
-                                        : "");
+                                        : "";
+
+
+                        String name =
+                                (firstName + " " + lastName)
+                                        .trim();
+
 
                         dto.setPatientName(
-                                name.trim()
+                                name
                         );
                     });
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // DOCTOR
-        // -----------------------------------------------------
+        // =====================================================
 
         dto.setDoctorId(
                 conversation.getDoctorId()
         );
 
-        if (conversation.getDoctorId() != null) {
+
+        if (conversation.getDoctorId() != null &&
+                !conversation.getDoctorId().trim().isEmpty()) {
 
             doctorRepository
-                    .findById(conversation.getDoctorId())
+                    .findById(
+                            conversation.getDoctorId()
+                    )
                     .ifPresent(doctor -> {
 
                         StringBuilder name =
                                 new StringBuilder();
 
-                        if (doctor.getTitle() != null) {
+
+                        if (doctor.getTitle() != null &&
+                                !doctor.getTitle().trim().isEmpty()) {
+
                             name.append(
-                                    doctor.getTitle()
+                                    doctor.getTitle().trim()
                             ).append(" ");
                         }
 
-                        if (doctor.getFirstName() != null) {
+
+                        if (doctor.getFirstName() != null &&
+                                !doctor.getFirstName().trim().isEmpty()) {
+
                             name.append(
-                                    doctor.getFirstName()
+                                    doctor.getFirstName().trim()
                             ).append(" ");
                         }
 
-                        if (doctor.getLastName() != null) {
+
+                        if (doctor.getLastName() != null &&
+                                !doctor.getLastName().trim().isEmpty()) {
+
                             name.append(
-                                    doctor.getLastName()
+                                    doctor.getLastName().trim()
                             );
                         }
+
 
                         dto.setDoctorName(
                                 name.toString().trim()
@@ -208,21 +377,24 @@ public class ChatService {
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // LAST MESSAGE
-        // -----------------------------------------------------
+        // =====================================================
 
         dto.setLastMessage(
                 conversation.getLastMessage()
         );
 
+
         dto.setLastMessageAt(
                 conversation.getLastMessageAt()
         );
 
+
         dto.setCreatedAt(
                 conversation.getCreatedAt()
         );
+
 
         return dto;
     }
@@ -250,6 +422,11 @@ public class ChatService {
             String conversationId,
             SendMessageRequest request) {
 
+
+        // =====================================================
+        // VALIDATE MESSAGE
+        // =====================================================
+
         if (request.getContent() == null ||
                 request.getContent().trim().isEmpty()) {
 
@@ -259,40 +436,57 @@ public class ChatService {
         }
 
 
-        Message message = new Message();
+        // =====================================================
+        // CREATE MESSAGE
+        // =====================================================
 
-        message.setConversationId(conversationId);
+        Message message =
+                new Message();
+
+
+        message.setConversationId(
+                conversationId
+        );
+
 
         message.setSenderId(
                 request.getSenderId()
         );
 
+
         message.setSenderRole(
                 request.getSenderRole()
         );
+
 
         message.setContent(
                 request.getContent().trim()
         );
 
+
         message.setSentAt(
                 LocalDateTime.now()
         );
 
-        message.setRead(false);
+
+        message.setRead(
+                false
+        );
 
 
-        // ==========================================
+        // =====================================================
         // SAVE MESSAGE
-        // ==========================================
+        // =====================================================
 
         Message savedMessage =
-                messageRepository.save(message);
+                messageRepository.save(
+                        message
+                );
 
 
-        // ==========================================
+        // =====================================================
         // UPDATE CONVERSATION
-        // ==========================================
+        // =====================================================
 
         conversationRepository
                 .findById(conversationId)
@@ -302,9 +496,11 @@ public class ChatService {
                             savedMessage.getContent()
                     );
 
+
                     conversation.setLastMessageAt(
                             savedMessage.getSentAt()
                     );
+
 
                     conversationRepository.save(
                             conversation
@@ -312,9 +508,9 @@ public class ChatService {
                 });
 
 
-        // ==========================================
-        // BROADCAST MESSAGE
-        // ==========================================
+        // =====================================================
+        // BROADCAST REALTIME MESSAGE
+        // =====================================================
 
         messagingTemplate.convertAndSend(
                 "/topic/conversation/" + conversationId,
