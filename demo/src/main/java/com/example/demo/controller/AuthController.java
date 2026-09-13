@@ -66,6 +66,8 @@ public class AuthController {
                 result = patientService.verifyOtp(email, code);
             } else if ("DOCTOR".equalsIgnoreCase(role)) {
                 result = doctorService.verifyOtp(email, code);
+            } else if ("HOSPITAL".equalsIgnoreCase(role)) {
+                result = hospitalService.verifyOtp(email, code);
             } else {
                 return ResponseEntity.badRequest()
                         .body(java.util.Collections.singletonMap(
@@ -159,17 +161,27 @@ public class AuthController {
         );
 
         if (hospital != null) {
-            String token = jwtService.generateToken(hospital.getEmail(), "HOSPITAL");
-
-            return ResponseEntity.ok(
-                    new LoginResponse(
-                            "Login Successful",
-                            "HOSPITAL",
-                            hospital.getId(),
-                            hospital.getName(),
-                            token
-                    )
+            String token = jwtService.generateToken(
+                    hospital.getEmail(),
+                    "HOSPITAL"
             );
+
+            LoginResponse response = new LoginResponse(
+                    "Login Successful",
+                    "HOSPITAL",
+                    hospital.getId(),
+                    hospital.getName(),
+                    token
+            );
+
+            response.setEmail(hospital.getEmail());
+            response.setVerified(hospital.isVerified());
+            response.setMustChangePassword(
+                    hospital.isMustChangePassword()
+            );
+            response.setProfileImage(hospital.getProfileImage());
+
+            return ResponseEntity.ok(response);
         }
 
         // DOCTOR

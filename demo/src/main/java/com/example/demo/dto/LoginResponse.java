@@ -8,6 +8,11 @@ public class LoginResponse {
     private String name;
     private String token;
 
+    private String email;
+    private boolean verified;
+    private boolean mustChangePassword;
+    private String profileImage;
+
 
     public LoginResponse() {
     }
@@ -58,4 +63,42 @@ public class LoginResponse {
     public String getToken() {
         return token;
     }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public void setMustChangePassword(boolean mustChangePassword) {
+        this.mustChangePassword = mustChangePassword;
+    }
+
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
 }
+
+
