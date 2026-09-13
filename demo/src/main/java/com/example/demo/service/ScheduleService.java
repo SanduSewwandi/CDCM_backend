@@ -74,7 +74,48 @@ public class ScheduleService {
             schedule.setMeetingLink(null);
         }
 
-        return scheduleRepository.save(schedule);
+        Schedule savedSchedule = scheduleRepository.save(schedule);
+
+        // Notify Doctor: Hospital Assigned Schedule to Doctor
+        try {
+            if (savedSchedule.getDoctorId() != null && notificationRepository != null) {
+                String hospitalName = "A hospital";
+                if (savedSchedule.getHospitalId() != null && hospitalRepository != null) {
+                    Hospital hospital = hospitalRepository.findById(savedSchedule.getHospitalId()).orElse(null);
+                    if (hospital != null && hospital.getName() != null && !hospital.getName().isBlank()) {
+                        hospitalName = hospital.getName();
+                    }
+                }
+
+                String doctorName = "Doctor";
+                if (doctorRepository != null) {
+                    Doctor doctor = doctorRepository.findById(savedSchedule.getDoctorId()).orElse(null);
+                    if (doctor != null) {
+                        doctorName = "Dr. " + doctor.getFirstName() + " " + doctor.getLastName();
+                    }
+                }
+
+                Notification docNotification = new Notification();
+                docNotification.setUserId(savedSchedule.getDoctorId());
+                docNotification.setDoctorId(savedSchedule.getDoctorId());
+                docNotification.setDoctorName(doctorName);
+                docNotification.setHospitalId(savedSchedule.getHospitalId());
+                docNotification.setScheduleId(savedSchedule.getId());
+                docNotification.setScheduleType(savedSchedule.getType());
+                docNotification.setDate(savedSchedule.getDate());
+                docNotification.setTime(savedSchedule.getStartTime() + " - " + savedSchedule.getEndTime());
+                docNotification.setTitle("Hospital Assigned Schedule to Doctor");
+                String scheduleTypeLabel = "VIDEO".equalsIgnoreCase(savedSchedule.getType()) ? "video consultation" : "physical";
+                docNotification.setMessage(hospitalName + " assigned a " + scheduleTypeLabel + " schedule to you on " + savedSchedule.getDate() + " from " + savedSchedule.getStartTime() + " to " + savedSchedule.getEndTime() + ".");
+                docNotification.setRead(false);
+
+                notificationRepository.save(docNotification);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to create doctor schedule assignment notification: " + e.getMessage());
+        }
+
+        return savedSchedule;
     }
 
     // ----------------- DOCTOR SCHEDULES -----------------
@@ -278,6 +319,56 @@ public class ScheduleService {
             notificationRepository.save(
                     hospitalNotification
             );
+
+            // Notify Doctor: Physical Schedule Cancelled / Video Consultation Cancelled
+            try {
+                if (schedule.getDoctorId() != null && notificationRepository != null) {
+                    Notification doctorNotification = new Notification();
+                    doctorNotification.setUserId(schedule.getDoctorId());
+                    doctorNotification.setDoctorId(schedule.getDoctorId());
+                    doctorNotification.setDoctorName(doctorName);
+                    doctorNotification.setHospitalId(schedule.getHospitalId());
+                    doctorNotification.setScheduleId(schedule.getId());
+                    doctorNotification.setScheduleType(schedule.getType());
+                    doctorNotification.setDate(schedule.getDate());
+                    doctorNotification.setTime(
+                            schedule.getStartTime()
+                                    + " - "
+                                    + schedule.getEndTime()
+                    );
+
+                    if (isVideo) {
+                        doctorNotification.setTitle("Video Consultation Cancelled");
+                        doctorNotification.setMessage(
+                                "Your video consultation schedule on "
+                                        + schedule.getDate()
+                                        + " from "
+                                        + schedule.getStartTime()
+                                        + " to "
+                                        + schedule.getEndTime()
+                                        + " has been cancelled."
+                        );
+                    } else {
+                        doctorNotification.setTitle("Physical Schedule Cancelled");
+                        doctorNotification.setMessage(
+                                "Your physical schedule at "
+                                        + hospitalName
+                                        + " on "
+                                        + schedule.getDate()
+                                        + " from "
+                                        + schedule.getStartTime()
+                                        + " to "
+                                        + schedule.getEndTime()
+                                        + " has been cancelled."
+                        );
+                    }
+
+                    doctorNotification.setRead(false);
+                    notificationRepository.save(doctorNotification);
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to create doctor schedule cancellation notification: " + e.getMessage());
+            }
 
 
             // =========================================================

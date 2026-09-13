@@ -126,9 +126,30 @@ public class PaymentService {
             if (!doctorName.isEmpty()) {
                 note.setDoctorName(doctorName);
             }
-            note.setScheduleType("PHYSICAL");
+            note.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
 
             notificationRepo.save(note);
+
+            // Notify Doctor if this is a video consultation booking
+            if ("VIDEO".equalsIgnoreCase(appointment.getConsultationType()) && appointment.getDoctorId() != null) {
+                Notification docNote = new Notification();
+                docNote.setUserId(appointment.getDoctorId());
+                docNote.setDoctorId(appointment.getDoctorId());
+                docNote.setScheduleId(appointment.getScheduleId());
+                docNote.setScheduleType("VIDEO");
+                docNote.setDate(appointment.getDate());
+                docNote.setTime(appointment.getTime());
+                docNote.setHospitalId(appointment.getHospitalId());
+                docNote.setTitle("Video Consultation Booking Notification");
+                String timeStr = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
+                docNote.setMessage("A patient has successfully booked a video consultation with you for " + (appointment.getDate() != null ? appointment.getDate() : "") + timeStr + ".");
+                docNote.setCreatedAt(now);
+                docNote.setRead(false);
+                if (!doctorName.isEmpty()) {
+                    docNote.setDoctorName(doctorName);
+                }
+                notificationRepo.save(docNote);
+            }
         }
 
         return savedAppointment;
