@@ -130,25 +130,51 @@ public class PaymentService {
 
             notificationRepo.save(note);
 
-            // Notify Doctor if this is a video consultation booking
-            if ("VIDEO".equalsIgnoreCase(appointment.getConsultationType()) && appointment.getDoctorId() != null) {
+            // Notify Doctor
+            if (appointment.getDoctorId() != null && notificationRepo != null) {
                 Notification docNote = new Notification();
                 docNote.setUserId(appointment.getDoctorId());
                 docNote.setDoctorId(appointment.getDoctorId());
                 docNote.setScheduleId(appointment.getScheduleId());
-                docNote.setScheduleType("VIDEO");
+                docNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
                 docNote.setDate(appointment.getDate());
                 docNote.setTime(appointment.getTime());
                 docNote.setHospitalId(appointment.getHospitalId());
-                docNote.setTitle("Video Consultation Booking Notification");
                 String timeStr = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
-                docNote.setMessage("A patient has successfully booked a video consultation with you for " + (appointment.getDate() != null ? appointment.getDate() : "") + timeStr + ".");
+                String apptNumStr = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : orderId;
+
+                if ("VIDEO".equalsIgnoreCase(appointment.getConsultationType())) {
+                    docNote.setTitle("Video Consultation Confirmed");
+                    docNote.setMessage("Patient confirmed payment for video consultation on " + (appointment.getDate() != null ? appointment.getDate() : "") + timeStr + ".");
+                } else {
+                    docNote.setTitle("Appointment Confirmed & Paid");
+                    docNote.setMessage("Patient confirmed payment for Appointment #" + apptNumStr + " on " + (appointment.getDate() != null ? appointment.getDate() : "") + timeStr + ".");
+                }
                 docNote.setCreatedAt(now);
                 docNote.setRead(false);
                 if (!doctorName.isEmpty()) {
                     docNote.setDoctorName(doctorName);
                 }
                 notificationRepo.save(docNote);
+            }
+
+            // Notify Hospital
+            if (appointment.getHospitalId() != null && notificationRepo != null) {
+                Notification hospNote = new Notification();
+                hospNote.setUserId(appointment.getHospitalId());
+                hospNote.setHospitalId(appointment.getHospitalId());
+                hospNote.setDoctorId(appointment.getDoctorId());
+                hospNote.setDoctorName(doctorName);
+                hospNote.setScheduleId(appointment.getScheduleId());
+                hospNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
+                hospNote.setDate(appointment.getDate());
+                hospNote.setTime(appointment.getTime());
+                hospNote.setTitle("Payment Confirmed");
+                String apptNumStr = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : orderId;
+                hospNote.setMessage("Payment of LKR " + appointment.getAmount() + " confirmed for Appointment #" + apptNumStr + " with " + doctorName + ".");
+                hospNote.setCreatedAt(now);
+                hospNote.setRead(false);
+                notificationRepo.save(hospNote);
             }
         }
 
