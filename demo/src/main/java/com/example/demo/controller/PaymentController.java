@@ -4,6 +4,7 @@ import com.example.demo.dto.PaymentNotificationDTO;
 import com.example.demo.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigInteger;
@@ -67,6 +68,49 @@ public class PaymentController {
     @PostMapping("/notify")
     public void handlePayHereNotify(@ModelAttribute PaymentNotificationDTO dto) {
         paymentService.processNotification(dto);
+    }
+
+    @GetMapping("/patient/{patientId}")
+    public ResponseEntity<?> getPatientPaymentHistory(@PathVariable String patientId) {
+        try {
+            return ResponseEntity.ok(paymentService.getPatientPaymentHistory(patientId));
+        } catch (Exception e) {
+            logger.severe("Error fetching patient payment history: " + e.getMessage());
+            return ResponseEntity.status(500).body("Error fetching payment history: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/payment-success/{orderId}")
+    public ResponseEntity<?> paymentSuccess(
+            @PathVariable String orderId,
+            @RequestBody(required = false) Map<String, Object> req) {
+        try {
+            String payhereId = null;
+            Double amount = null;
+            if (req != null) {
+                if (req.containsKey("payhereId") && req.get("payhereId") != null) {
+                    payhereId = String.valueOf(req.get("payhereId"));
+                }
+                if (req.containsKey("amount") && req.get("amount") != null) {
+                    try {
+                        amount = Double.parseDouble(String.valueOf(req.get("amount")));
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            com.example.demo.model.Appointment updated = paymentService.confirmPaymentSuccess(orderId, payhereId, amount);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Payment confirmed successfully");
+            response.put("appointment", updated);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.severe("Error confirming payment success: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Error confirming payment: " + e.getMessage());
+            return ResponseEntity.status(500).body(errorResponse);
+        }
     }
 
     private String md5(String input) throws NoSuchAlgorithmException {

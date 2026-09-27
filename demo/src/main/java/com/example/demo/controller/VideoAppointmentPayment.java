@@ -8,8 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.demo.model.Schedule;
-import com.example.demo.repository.ScheduleRepository;
+import com.example.demo.model.Notification;
+import com.example.demo.repository.NotificationRepository;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +25,9 @@ public class VideoAppointmentPayment {
 
     @Autowired
     private ScheduleRepository scheduleRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     // =========================================================
     // CREATE VIDEO APPOINTMENT
@@ -287,6 +290,28 @@ public class VideoAppointmentPayment {
             appointmentRepository.save(
                     appointment
             );
+
+            // Notify Doctor: Video Consultation Booking Notification
+            try {
+                if (appointment.getDoctorId() != null && notificationRepository != null) {
+                    Notification docNote = new Notification();
+                    docNote.setUserId(appointment.getDoctorId());
+                    docNote.setDoctorId(appointment.getDoctorId());
+                    docNote.setScheduleId(appointment.getScheduleId());
+                    docNote.setScheduleType("VIDEO");
+                    docNote.setDate(appointment.getDate());
+                    docNote.setTime(appointment.getTime());
+                    docNote.setHospitalId(appointment.getHospitalId());
+                    docNote.setTitle("Video Consultation Booking Notification");
+                    String timeStr = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
+                    docNote.setMessage("A patient has successfully booked a video consultation with you for " + appointment.getDate() + timeStr + ".");
+                    docNote.setRead(false);
+
+                    notificationRepository.save(docNote);
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to create doctor video booking notification: " + e.getMessage());
+            }
 
 
             Map<String, Object> response =

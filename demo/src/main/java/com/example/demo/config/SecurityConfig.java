@@ -11,7 +11,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.http.HttpMethod;
-
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
@@ -33,6 +34,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        .requestMatchers("/ws/**").permitAll()
+
                         .requestMatchers("/api/upload", "/api/upload/**").permitAll()
 
                         .requestMatchers("/api/lab/pay/**").permitAll()
@@ -56,6 +60,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/medical-records/**").permitAll()
                         .requestMatchers("/api/payments/notify").permitAll()
                         .requestMatchers("/api/payments/**").permitAll()
+
+
 
                         .anyRequest().authenticated()
                 )
