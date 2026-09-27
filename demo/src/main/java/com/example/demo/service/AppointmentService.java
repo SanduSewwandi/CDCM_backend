@@ -71,11 +71,15 @@ public class AppointmentService {
                 savedAppointment.getDoctorId()
         );
 
+        // Send notifications across the system (Patient, Doctor, Hospital)
+        createAppointmentNotification(savedAppointment);
+
         return savedAppointment;
     }
 
     private void createAppointmentNotification(Appointment appointment) {
         try {
+            LocalDateTime now = LocalDateTime.now();
             String doctorName = "Doctor";
             if (appointment.getDoctorId() != null && doctorRepository != null) {
                 Optional<Doctor> doctorOpt = doctorRepository.findById(appointment.getDoctorId());
@@ -91,29 +95,67 @@ public class AppointmentService {
                 }
             }
 
-            Notification notification = new Notification();
-            notification.setUserId(appointment.getPatientId());
-            notification.setTitle("Appointment Booked Successfully");
-            notification.setDoctorId(appointment.getDoctorId());
-            notification.setDoctorName(doctorName);
-            notification.setScheduleId(appointment.getScheduleId());
-            notification.setScheduleType("PHYSICAL");
-            notification.setDate(appointment.getDate());
-            notification.setTime(appointment.getTime());
-            notification.setHospitalId(appointment.getHospitalId());
-            notification.setRead(false);
-            notification.setCreatedAt(LocalDateTime.now());
-
             String dateStr = appointment.getDate() != null ? appointment.getDate() : "";
             String timeStr = appointment.getTime() != null ? appointment.getTime() : "";
-            String message = "Your physical appointment with " + doctorName + " has been successfully booked for " + dateStr + (timeStr.isEmpty() ? "" : " at " + timeStr) + ".";
-            notification.setMessage(message);
+            String timeSuffix = timeStr.isEmpty() ? "" : " at " + timeStr;
+            String apptNum = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : "N/A";
 
-            if (notificationRepository != null) {
-                notificationRepository.save(notification);
+            // 1. Notify Patient
+            if (appointment.getPatientId() != null && notificationRepository != null) {
+                Notification patientNote = new Notification();
+                patientNote.setUserId(appointment.getPatientId());
+                patientNote.setTitle("Appointment Booked Successfully");
+                patientNote.setDoctorId(appointment.getDoctorId());
+                patientNote.setDoctorName(doctorName);
+                patientNote.setScheduleId(appointment.getScheduleId());
+                patientNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
+                patientNote.setDate(appointment.getDate());
+                patientNote.setTime(appointment.getTime());
+                patientNote.setHospitalId(appointment.getHospitalId());
+                patientNote.setRead(false);
+                patientNote.setCreatedAt(now);
+                patientNote.setMessage("Your appointment (" + apptNum + ") with " + doctorName + " is booked for " + dateStr + timeSuffix + ". Please complete payment to confirm.");
+                notificationRepository.save(patientNote);
             }
+
+            // 2. Notify Doctor
+            if (appointment.getDoctorId() != null && notificationRepository != null) {
+                Notification docNote = new Notification();
+                docNote.setUserId(appointment.getDoctorId());
+                docNote.setDoctorId(appointment.getDoctorId());
+                docNote.setDoctorName(doctorName);
+                docNote.setScheduleId(appointment.getScheduleId());
+                docNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
+                docNote.setDate(appointment.getDate());
+                docNote.setTime(appointment.getTime());
+                docNote.setHospitalId(appointment.getHospitalId());
+                docNote.setTitle("New Appointment Booking");
+                docNote.setMessage("A patient has booked appointment (" + apptNum + ") with you for " + dateStr + timeSuffix + ".");
+                docNote.setRead(false);
+                docNote.setCreatedAt(now);
+                notificationRepository.save(docNote);
+            }
+
+            // 3. Notify Hospital
+            if (appointment.getHospitalId() != null && notificationRepository != null) {
+                Notification hospNote = new Notification();
+                hospNote.setUserId(appointment.getHospitalId());
+                hospNote.setHospitalId(appointment.getHospitalId());
+                hospNote.setDoctorId(appointment.getDoctorId());
+                hospNote.setDoctorName(doctorName);
+                hospNote.setScheduleId(appointment.getScheduleId());
+                hospNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
+                hospNote.setDate(appointment.getDate());
+                hospNote.setTime(appointment.getTime());
+                hospNote.setTitle("New Appointment Booking");
+                hospNote.setMessage("Appointment (" + apptNum + ") was booked for " + doctorName + " on " + dateStr + timeSuffix + ".");
+                hospNote.setRead(false);
+                hospNote.setCreatedAt(now);
+                notificationRepository.save(hospNote);
+            }
+
         } catch (Exception e) {
-            System.err.println("Failed to create appointment notification: " + e.getMessage());
+            System.err.println("Failed to create appointment notifications: " + e.getMessage());
         }
     }
 
