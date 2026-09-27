@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.model.Hospital;
 import com.example.demo.service.HospitalService;
+import com.example.demo.service.HospitalAnalyticsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,9 +20,11 @@ import com.example.demo.dto.HospitalProfileDTO;
 public class HospitalController {
 
     private final HospitalService hospitalService;
+    private final HospitalAnalyticsService hospitalAnalyticsService;
 
-    public HospitalController(HospitalService hospitalService) {
+    public HospitalController(HospitalService hospitalService, HospitalAnalyticsService hospitalAnalyticsService) {
         this.hospitalService = hospitalService;
+        this.hospitalAnalyticsService = hospitalAnalyticsService;
     }
 
     // Get all hospitals
@@ -229,7 +232,24 @@ public class HospitalController {
         }
     }
 
-
-
-
-}
+    // =========================================================
+    // HOSPITAL ANALYTICS
+    // =========================================================
+    @GetMapping("/{id}/analytics")
+    public ResponseEntity<?> getHospitalAnalytics(@PathVariable String id) {
+        try {
+            Map<String, Object> analytics = hospitalAnalyticsService.getHospitalAnalytics(id);
+            return ResponseEntity.ok(analytics);
+        } catch (Exception error) {
+            error.printStackTrace();
+            return ResponseEntity
+                    .status(500)
+                    .body(
+                            Map.of(
+                                    "message",
+                                    "Failed to load analytics: " + error.getMessage()
+                            )
+                    );
+        }
+    }
+}
