@@ -5,11 +5,13 @@ import com.example.demo.model.Appointment;
 import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
 import com.example.demo.model.Notification;
+import com.example.demo.model.Schedule;
 import com.example.demo.repository.AppointmentRepository;
 import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.HospitalRepository;
 import com.example.demo.repository.NotificationRepository;
 import com.example.demo.repository.PatientRepository;
+import com.example.demo.repository.ScheduleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.example.demo.model.Conversation;
@@ -40,6 +42,9 @@ public class AppointmentService {
     private DoctorRepository doctorRepository;
 
     @Autowired
+    private ScheduleRepository scheduleRepository;
+
+    @Autowired
     private ChatService chatService;
 
 
@@ -62,9 +67,46 @@ public class AppointmentService {
             appointment.setAmount(1000.00);
         }
 
+        // Ensure hospitalId is populated from schedule if missing
+        if ((appointment.getHospitalId() == null || appointment.getHospitalId().trim().isEmpty() || "null".equalsIgnoreCase(appointment.getHospitalId()))
+                && appointment.getScheduleId() != null && scheduleRepository != null) {
+            try {
+                scheduleRepository.findById(appointment.getScheduleId()).ifPresent(s -> {
+                    if (s.getHospitalId() != null && !s.getHospitalId().trim().isEmpty()) {
+                        appointment.setHospitalId(s.getHospitalId());
+                    }
+                });
+            } catch (Exception ignored) {}
+        }
+
+        // Fallback: Check doctor's associated hospital if still missing
+        if ((appointment.getHospitalId() == null || appointment.getHospitalId().trim().isEmpty() || "null".equalsIgnoreCase(appointment.getHospitalId()))
+                && appointment.getDoctorId() != null && doctorRepository != null) {
+            try {
+                doctorRepository.findById(appointment.getDoctorId()).ifPresent(d -> {
+                    if (d.getHospitals() != null && !d.getHospitals().isEmpty()) {
+                        appointment.setHospitalId(d.getHospitals().get(0));
+                    }
+                });
+            } catch (Exception ignored) {}
+        }
+
+        // Populate patientName if missing
+        if ((appointment.getPatientName() == null || appointment.getPatientName().trim().isEmpty())
+                && appointment.getPatientId() != null && patientRepository != null) {
+            try {
+                patientRepository.findById(appointment.getPatientId()).ifPresent(p -> {
+                    String fullName = ((p.getFirstName() != null ? p.getFirstName() : "") + " " + (p.getLastName() != null ? p.getLastName() : "")).trim();
+                    if (!fullName.isEmpty()) {
+                        appointment.setPatientName(fullName);
+                    }
+                });
+            } catch (Exception ignored) {}
+        }
+
         Appointment savedAppointment = appointmentRepository.save(appointment);
 
-// Create chat conversation for this appointment
+        // Create chat conversation for this appointment
         chatService.createConversation(
                 savedAppointment.getId(),
                 savedAppointment.getPatientId(),
