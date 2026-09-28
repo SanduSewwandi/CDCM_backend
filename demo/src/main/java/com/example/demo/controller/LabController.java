@@ -18,6 +18,12 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 
+import com.example.demo.model.Hospital;
+import com.example.demo.model.TestCategory;
+import com.example.demo.repository.HospitalRepository;
+import com.example.demo.repository.TestCategoryRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +38,12 @@ public class LabController {
     private final PatientRepository patientRepository;
     private final NotificationRepository notificationRepository;
     private final FileUploadService fileUploadService;
+
+    @Autowired(required = false)
+    private TestCategoryRepository testCategoryRepository;
+
+    @Autowired(required = false)
+    private HospitalRepository hospitalRepository;
 
     public LabController(LabTestRepository labTestRepository,
                          PatientRepository patientRepository,
@@ -54,7 +66,31 @@ public class LabController {
     public LabTest addLabTest(@RequestBody LabTestRequest request) {
         LabTest test = new LabTest();  // createdAt and updatedAt are set in constructor
         test.setPatientId(request.getPatientId());
-        test.setHospitalId(request.getHospitalId());
+
+        String resolvedHospitalId = request.getHospitalId();
+        if ((resolvedHospitalId == null || resolvedHospitalId.trim().isEmpty() || "null".equalsIgnoreCase(resolvedHospitalId))
+                && testCategoryRepository != null && request.getTestType() != null) {
+            try {
+                for (TestCategory cat : testCategoryRepository.findAll()) {
+                    if (cat.getTestName() != null && cat.getTestName().trim().equalsIgnoreCase(request.getTestType().trim())
+                            && cat.getHospitalId() != null && !cat.getHospitalId().trim().isEmpty()) {
+                        resolvedHospitalId = cat.getHospitalId();
+                        break;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        if ((resolvedHospitalId == null || resolvedHospitalId.trim().isEmpty() || "null".equalsIgnoreCase(resolvedHospitalId))
+                && hospitalRepository != null) {
+            try {
+                List<Hospital> hospitals = hospitalRepository.findAll();
+                if (!hospitals.isEmpty()) {
+                    resolvedHospitalId = hospitals.get(0).getId();
+                }
+            } catch (Exception ignored) {}
+        }
+
+        test.setHospitalId(resolvedHospitalId);
         test.setTestType(request.getTestType());
         test.setPrice(request.getPrice());
         test.setTestDate(request.getTestDate());
@@ -119,14 +155,51 @@ public class LabController {
         test.setPaid(true);
         test.setPaidAt(LocalDateTime.now());
 
+        // Resolve missing hospitalId if needed
+        if (test.getHospitalId() == null || test.getHospitalId().trim().isEmpty() || "null".equalsIgnoreCase(test.getHospitalId())) {
+            if (testCategoryRepository != null && test.getTestType() != null && !test.getTestType().isBlank()) {
+                try {
+                    List<TestCategory> categories = testCategoryRepository.findAll();
+                    for (TestCategory cat : categories) {
+                        if (cat.getTestName() != null && cat.getTestName().trim().equalsIgnoreCase(test.getTestType().trim())
+                                && cat.getHospitalId() != null && !cat.getHospitalId().trim().isEmpty()) {
+                            test.setHospitalId(cat.getHospitalId());
+                            break;
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            if ((test.getHospitalId() == null || test.getHospitalId().trim().isEmpty() || "null".equalsIgnoreCase(test.getHospitalId()))
+                    && hospitalRepository != null) {
+                try {
+                    List<Hospital> hospitals = hospitalRepository.findAll();
+                    if (!hospitals.isEmpty()) {
+                        test.setHospitalId(hospitals.get(0).getId());
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
         LabTest savedTest = labTestRepository.save(test);
 
         // ---- SEND HOSPITAL NOTIFICATION ----
-        if (test.getHospitalId() != null && !test.getHospitalId().isEmpty()) {
+        if (test.getHospitalId() != null && !test.getHospitalId().trim().isEmpty() && !"null".equalsIgnoreCase(test.getHospitalId())) {
             Notification hospitalNotification = new Notification();
             hospitalNotification.setUserId(test.getHospitalId()); // hospital gets the notification
+            hospitalNotification.setHospitalId(test.getHospitalId());
+            hospitalNotification.setTitle("Lab Test Payment Confirmed");
+
+            String patientDisplayName = test.getPatientId();
+            if (patientRepository != null && test.getPatientId() != null && !test.getPatientId().isBlank()) {
+                patientDisplayName = patientRepository.findById(test.getPatientId())
+                        .map(p -> ((p.getFirstName() != null ? p.getFirstName() : "") + " " + (p.getLastName() != null ? p.getLastName() : "")).trim())
+                        .filter(name -> !name.isEmpty())
+                        .orElse(test.getPatientId());
+            }
+
             hospitalNotification.setMessage(
-                    "Patient " + test.getPatientId() + " has paid for " + test.getTestType() + " (Rs " + test.getPrice() + ")"
+                    "Patient " + patientDisplayName
+                    + " has paid for " + test.getTestType() + " (Rs " + test.getPrice() + ")"
             );
             hospitalNotification.setRead(false);
             hospitalNotification.setCreatedAt(LocalDateTime.now());

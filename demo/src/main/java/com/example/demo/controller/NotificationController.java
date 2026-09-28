@@ -43,13 +43,14 @@ public class NotificationController {
                     combined.add(n);
                 }
             }
+            // Fallback for legacy notifications where userId was not explicitly populated:
             for (Notification n : byHospital) {
-                if (n.getId() != null && seenIds.add(n.getId())) {
+                if (n.getId() != null && n.getUserId() == null && seenIds.add(n.getId())) {
                     combined.add(n);
                 }
             }
             for (Notification n : byDoctor) {
-                if (n.getId() != null && seenIds.add(n.getId())) {
+                if (n.getId() != null && n.getUserId() == null && seenIds.add(n.getId())) {
                     combined.add(n);
                 }
             }
@@ -83,10 +84,14 @@ public class NotificationController {
                 if (n.getId() != null) unreadIds.add(n.getId());
             }
             for (Notification n : repo.findByHospitalIdAndReadFalseOrderByCreatedAtDesc(userId)) {
-                if (n.getId() != null) unreadIds.add(n.getId());
+                if (n.getId() != null && n.getUserId() == null) {
+                    unreadIds.add(n.getId());
+                }
             }
             for (Notification n : repo.findByDoctorIdAndReadFalseOrderByCreatedAtDesc(userId)) {
-                if (n.getId() != null) unreadIds.add(n.getId());
+                if (n.getId() != null && n.getUserId() == null) {
+                    unreadIds.add(n.getId());
+                }
             }
 
             long totalUnread = unreadIds.size();
@@ -115,8 +120,16 @@ public class NotificationController {
         try {
             List<Notification> toUpdate = new ArrayList<>();
             toUpdate.addAll(repo.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId));
-            toUpdate.addAll(repo.findByHospitalIdAndReadFalseOrderByCreatedAtDesc(userId));
-            toUpdate.addAll(repo.findByDoctorIdAndReadFalseOrderByCreatedAtDesc(userId));
+            for (Notification n : repo.findByHospitalIdAndReadFalseOrderByCreatedAtDesc(userId)) {
+                if (n.getUserId() == null) {
+                    toUpdate.add(n);
+                }
+            }
+            for (Notification n : repo.findByDoctorIdAndReadFalseOrderByCreatedAtDesc(userId)) {
+                if (n.getUserId() == null) {
+                    toUpdate.add(n);
+                }
+            }
 
             Set<String> updatedIds = new HashSet<>();
             List<Notification> finalBatch = new ArrayList<>();
