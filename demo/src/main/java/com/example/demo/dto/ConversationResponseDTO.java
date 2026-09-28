@@ -12,8 +12,13 @@ public class ConversationResponseDTO {
     // Human-readable appointment number
     private String appointmentNumber;
 
+    private String appointmentDate;
+
     private String patientId;
     private String patientName;
+
+    private String hospitalId;
+    private String hospitalName;
 
     private String doctorId;
     private String doctorName;
@@ -21,6 +26,30 @@ public class ConversationResponseDTO {
     private String lastMessage;
     private LocalDateTime lastMessageAt;
     private LocalDateTime createdAt;
+
+
+    public String getHospitalId() {
+        return hospitalId;
+    }
+
+    public void setHospitalId(String hospitalId) {
+        this.hospitalId = hospitalId;
+    }
+
+    public String getHospitalName() {
+        return hospitalName;
+    }
+
+    public void setHospitalName(String hospitalName) {
+        this.hospitalName = hospitalName;
+    }
+    public String getAppointmentDate() {
+        return appointmentDate;
+    }
+
+    public void setAppointmentDate(String appointmentDate) {
+        this.appointmentDate = appointmentDate;
+    }
 
     public String getId() {
         return id;
