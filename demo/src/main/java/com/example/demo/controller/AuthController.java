@@ -358,4 +358,73 @@ public class AuthController {
         return ResponseEntity.badRequest().body("Invalid or expired token");
     }
 
+    // AUTHENTICATED CHANGE PASSWORD (ALL ROLES)
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            java.security.Principal principal,
+            @Valid @RequestBody com.example.demo.dto.ChangePasswordRequest request) {
+
+        if (principal == null || principal.getName() == null) {
+            return ResponseEntity.status(401)
+                    .body(java.util.Map.of("message", "Authentication required"));
+        }
+
+        String email = principal.getName();
+        String currentPassword = request.getCurrentPassword();
+        String newPassword = request.getNewPassword();
+
+        if (currentPassword == null || currentPassword.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(java.util.Map.of("message", "Current password is required"));
+        }
+
+        if (newPassword == null || newPassword.length() < 6) {
+            return ResponseEntity.badRequest()
+                    .body(java.util.Map.of("message", "New password must be at least 6 characters long"));
+        }
+
+        if (request.getConfirmPassword() != null && !request.getConfirmPassword().isBlank()) {
+            if (!newPassword.equals(request.getConfirmPassword())) {
+                return ResponseEntity.badRequest()
+                        .body(java.util.Map.of("message", "New password and confirmation do not match"));
+            }
+        }
+
+        try {
+            // Check PATIENT
+            try {
+                patientService.changePassword(email, currentPassword, newPassword);
+                return ResponseEntity.ok(java.util.Map.of("message", "Password changed successfully"));
+            } catch (RuntimeException e) {
+                if ("Current password does not match".equals(e.getMessage())) {
+                    return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+                }
+            }
+
+            // Check DOCTOR
+            try {
+                doctorService.changePassword(email, currentPassword, newPassword);
+                return ResponseEntity.ok(java.util.Map.of("message", "Password changed successfully"));
+            } catch (RuntimeException e) {
+                if ("Current password does not match".equals(e.getMessage())) {
+                    return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+                }
+            }
+
+            // Check HOSPITAL
+            try {
+                hospitalService.changePassword(email, currentPassword, newPassword);
+                return ResponseEntity.ok(java.util.Map.of("message", "Password changed successfully"));
+            } catch (RuntimeException e) {
+                if ("Current password does not match".equals(e.getMessage())) {
+                    return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+                }
+            }
+
+            return ResponseEntity.status(404).body(java.util.Map.of("message", "User account not found"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(java.util.Map.of("message", "Error changing password: " + e.getMessage()));
+        }
+    }
+
 }

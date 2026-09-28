@@ -2,6 +2,8 @@
 
 import com.example.demo.model.Appointment;
 import com.example.demo.repository.AppointmentRepository;
+import com.example.demo.model.Schedule;
+import com.example.demo.repository.ScheduleRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

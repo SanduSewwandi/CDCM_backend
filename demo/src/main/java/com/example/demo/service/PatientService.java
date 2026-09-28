@@ -155,7 +155,6 @@ public class PatientService {
 
     // ================= UPDATE PROFILE =================
     public Patient updatePatient(String id, Patient updatedData) {
-
         Patient existing = getPatientById(id);
 
         existing.setTitle(updatedData.getTitle());
@@ -168,5 +167,39 @@ public class PatientService {
         existing.setProfileImage(updatedData.getProfileImage());
 
         return patientRepository.save(existing);
+    }
+
+    // ================= CHANGE PASSWORD =================
+    public boolean changePassword(String email, String currentPassword, String newPassword) {
+        Patient patient = patientRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+
+        if (!passwordEncoder.matches(currentPassword, patient.getPassword())) {
+            throw new RuntimeException("Current password does not match");
+        }
+
+        patient.setPassword(passwordEncoder.encode(newPassword));
+        patientRepository.save(patient);
+        return true;
+    }
+
+    // ================= NOTIFICATION PREFERENCES =================
+    public com.example.demo.model.NotificationPreference getNotificationPreference(String email) {
+        Patient patient = patientRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+        return patient.getNotificationPreference();
+    }
+
+    public com.example.demo.model.NotificationPreference updateNotificationPreference(String email, com.example.demo.model.NotificationPreference preference) {
+        Patient patient = patientRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+        patient.setNotificationPreference(preference);
+        patientRepository.save(patient);
+        return patient.getNotificationPreference();
+    }
+
+    public Patient getPatientByEmail(String email) {
+        return patientRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
     }
 }

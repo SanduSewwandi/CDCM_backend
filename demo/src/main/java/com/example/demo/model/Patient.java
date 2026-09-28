@@ -29,6 +29,9 @@ public class Patient {
     private String resetToken;
     private LocalDateTime resetTokenExpiry;
 
+    // Notification preferences
+    private NotificationPreference notificationPreference = new NotificationPreference();
+
     public Patient() {}
 
     // Getters and Setters
@@ -79,6 +82,17 @@ public class Patient {
 
     public LocalDateTime getResetTokenExpiry() { return resetTokenExpiry; }
     public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
+
+    public NotificationPreference getNotificationPreference() {
+        if (notificationPreference == null) {
+            notificationPreference = new NotificationPreference();
+        }
+        return notificationPreference;
+    }
+
+    public void setNotificationPreference(NotificationPreference notificationPreference) {
+        this.notificationPreference = notificationPreference;
+    }
 }
 
 
