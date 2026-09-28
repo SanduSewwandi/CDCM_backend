@@ -1,15 +1,17 @@
  package com.example.demo.controller;
 
 import com.example.demo.model.Appointment;
+import com.example.demo.model.Schedule;
 import com.example.demo.repository.AppointmentRepository;
+import com.example.demo.repository.ScheduleRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.demo.model.Schedule;
-import com.example.demo.repository.ScheduleRepository;
+import com.example.demo.model.Notification;
+import com.example.demo.repository.NotificationRepository;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +27,9 @@ public class VideoAppointmentPayment {
 
     @Autowired
     private ScheduleRepository scheduleRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     // =========================================================
     // CREATE VIDEO APPOINTMENT
@@ -287,6 +292,70 @@ public class VideoAppointmentPayment {
             appointmentRepository.save(
                     appointment
             );
+
+            // Notify Doctor: Video Consultation Booking Notification
+            try {
+                if (appointment.getDoctorId() != null && notificationRepository != null) {
+                    Notification docNote = new Notification();
+                    docNote.setUserId(appointment.getDoctorId());
+                    docNote.setDoctorId(appointment.getDoctorId());
+                    docNote.setScheduleId(appointment.getScheduleId());
+                    docNote.setScheduleType("VIDEO");
+                    docNote.setDate(appointment.getDate());
+                    docNote.setTime(appointment.getTime());
+                    docNote.setHospitalId(appointment.getHospitalId());
+                    docNote.setTitle("Video Consultation Booking Notification");
+                    String timeStr = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
+                    docNote.setMessage("A patient has successfully booked a video consultation with you for " + appointment.getDate() + timeStr + ".");
+                    docNote.setRead(false);
+
+                    notificationRepository.save(docNote);
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to create doctor video booking notification: " + e.getMessage());
+            }
+
+            // Notify Patient: Video Consultation Confirmed
+            try {
+                if (appointment.getPatientId() != null && notificationRepository != null) {
+                    Notification patNote = new Notification();
+                    patNote.setUserId(appointment.getPatientId());
+                    patNote.setDoctorId(appointment.getDoctorId());
+                    patNote.setScheduleId(appointment.getScheduleId());
+                    patNote.setScheduleType("VIDEO");
+                    patNote.setDate(appointment.getDate());
+                    patNote.setTime(appointment.getTime());
+                    patNote.setHospitalId(appointment.getHospitalId());
+                    patNote.setTitle("Video Consultation Confirmed");
+                    String timeSuffix = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
+                    patNote.setMessage("Payment completed. Your video consultation is confirmed for " + appointment.getDate() + timeSuffix + ". Meeting link is available in your appointments.");
+                    patNote.setRead(false);
+                    notificationRepository.save(patNote);
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to create patient video notification: " + e.getMessage());
+            }
+
+            // Notify Hospital: Video Consultation Confirmed
+            try {
+                if (appointment.getHospitalId() != null && notificationRepository != null) {
+                    Notification hospNote = new Notification();
+                    hospNote.setUserId(appointment.getHospitalId());
+                    hospNote.setHospitalId(appointment.getHospitalId());
+                    hospNote.setDoctorId(appointment.getDoctorId());
+                    hospNote.setScheduleId(appointment.getScheduleId());
+                    hospNote.setScheduleType("VIDEO");
+                    hospNote.setDate(appointment.getDate());
+                    hospNote.setTime(appointment.getTime());
+                    hospNote.setTitle("Video Appointment Confirmed");
+                    hospNote.setMessage("Payment confirmed for video appointment on " + appointment.getDate() + ".");
+                    hospNote.setRead(false);
+                    notificationRepository.save(hospNote);
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to create hospital video notification: " + e.getMessage());
+            }
+
 
 
             Map<String, Object> response =
