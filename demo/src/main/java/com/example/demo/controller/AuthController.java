@@ -205,17 +205,20 @@ public class AuthController {
 
             String token = jwtService.generateToken(doctor.getEmail(), "DOCTOR");
 
-            return ResponseEntity.ok(
-                    new LoginResponse(
-                            "Login Successful",
-                            "DOCTOR",
-                            doctor.getId(),
-                            doctor.getTitle() + " " +
-                                    doctor.getFirstName() + " " +
-                                    doctor.getLastName(),
-                            token
-                    )
+            LoginResponse response = new LoginResponse(
+                    "Login Successful",
+                    "DOCTOR",
+                    doctor.getId(),
+                    doctor.getTitle() + " " +
+                            doctor.getFirstName() + " " +
+                            doctor.getLastName(),
+                    token
             );
+            response.setEmail(doctor.getEmail());
+            response.setVerified(doctor.isVerified());
+            response.setProfileImage(doctor.getProfileImage());
+
+            return ResponseEntity.ok(response);
         }
 
         // PATIENT
@@ -239,16 +242,19 @@ public class AuthController {
 
             String token = jwtService.generateToken(patient.getEmail(), "PATIENT");
 
-            return ResponseEntity.ok(
-                    new LoginResponse(
-                            "Login Successful",
-                            "PATIENT",
-                            patient.getId(),
-                            patient.getFirstName() + " " +
-                                    patient.getLastName(),
-                            token
-                    )
+            LoginResponse response = new LoginResponse(
+                    "Login Successful",
+                    "PATIENT",
+                    patient.getId(),
+                    patient.getFirstName() + " " +
+                            patient.getLastName(),
+                    token
             );
+            response.setEmail(patient.getEmail());
+            response.setVerified(patient.isVerified());
+            response.setProfileImage(patient.getProfileImage());
+
+            return ResponseEntity.ok(response);
         }
 
         // INVALID LOGIN
