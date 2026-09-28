@@ -103,6 +103,7 @@ class DemoApplicationTests {
 		pendingAppt.setId("appt-001");
 		pendingAppt.setPatientId("patientA");
 		pendingAppt.setDoctorId("doctorX");
+		pendingAppt.setHospitalId("hospital-001");
 		pendingAppt.setScheduleId("schedule1");
 		pendingAppt.setAppointmentNumber("APT-001");
 		pendingAppt.setDate("2026-09-10");
@@ -122,6 +123,7 @@ class DemoApplicationTests {
 		DoctorRepository mockDocRepo = mock(DoctorRepository.class);
 		HospitalRepository mockHospRepo = mock(HospitalRepository.class);
 		LabTestRepository mockLabRepo = mock(LabTestRepository.class);
+		com.example.demo.repository.ScheduleRepository mockScheduleRepo = mock(com.example.demo.repository.ScheduleRepository.class);
 
 		when(mockApptRepo.findById("appt-001")).thenReturn(Optional.of(pendingAppt));
 		when(mockApptRepo.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -133,6 +135,7 @@ class DemoApplicationTests {
 		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "doctorRepo", mockDocRepo);
 		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "hospitalRepo", mockHospRepo);
 		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "labRepo", mockLabRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "scheduleRepo", mockScheduleRepo);
 
 		Appointment confirmedAppt = paymentService.confirmPaymentSuccess("appt-001", "PAYHERE-12345", 1000.00);
 
@@ -143,13 +146,22 @@ class DemoApplicationTests {
 		assertEquals("PAYHERE-12345", confirmedAppt.getPayhereId());
 		assertNotNull(confirmedAppt.getPaidAt());
 
-		// Verify confirmation notification creation for Patient A
+		// Verify confirmation notifications created for Patient, Doctor, and Hospital
 		ArgumentCaptor<Notification> notifCaptor = ArgumentCaptor.forClass(Notification.class);
-		verify(mockNotifRepo, times(1)).save(notifCaptor.capture());
-		Notification capturedNotif = notifCaptor.getValue();
-		assertEquals("patientA", capturedNotif.getUserId());
-		assertEquals("Appointment Confirmed", capturedNotif.getTitle());
-		assertTrue(capturedNotif.getMessage().contains("Dr. John Doe"));
+		verify(mockNotifRepo, times(3)).save(notifCaptor.capture());
+		java.util.List<Notification> capturedNotifs = notifCaptor.getAllValues();
+
+		// Patient notification
+		assertTrue(capturedNotifs.stream().anyMatch(n -> 
+				"patientA".equals(n.getUserId()) && "Appointment Confirmed".equals(n.getTitle()) && n.getMessage().contains("Dr. John Doe")));
+
+		// Doctor notification
+		assertTrue(capturedNotifs.stream().anyMatch(n -> 
+				"doctorX".equals(n.getUserId()) && n.getMessage().contains("APT-001")));
+
+		// Hospital notification
+		assertTrue(capturedNotifs.stream().anyMatch(n -> 
+				"hospital-001".equals(n.getUserId()) && "hospital-001".equals(n.getHospitalId()) && "Payment Confirmed".equals(n.getTitle())));
 	}
 
 	// 4. Physical Appointment -> Cancelled / Unpaid -> Remains PENDING
