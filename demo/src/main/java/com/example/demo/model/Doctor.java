@@ -34,6 +34,9 @@ public class Doctor {
     private String resetToken;
     private LocalDateTime resetTokenExpiry;
 
+    // Notification preferences
+    private NotificationPreference notificationPreference = new NotificationPreference();
+
 
     public Doctor() {}
 
@@ -188,6 +191,17 @@ public class Doctor {
 
     public String getFullName() {
         return firstName + " " + lastName;
+    }
+
+    public NotificationPreference getNotificationPreference() {
+        if (notificationPreference == null) {
+            notificationPreference = new NotificationPreference();
+        }
+        return notificationPreference;
+    }
+
+    public void setNotificationPreference(NotificationPreference notificationPreference) {
+        this.notificationPreference = notificationPreference;
     }
 }
 
