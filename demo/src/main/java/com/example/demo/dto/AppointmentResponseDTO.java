@@ -19,4 +19,8 @@ public class AppointmentResponseDTO {
     private String doctorId;
     private boolean isPaid;
 
+    // Medical history access status (safe, no OTP or hash exposed)
+    private boolean medicalHistoryAccessActive;
+    private java.time.LocalDateTime medicalHistoryAccessExpiresAt;
+
 }

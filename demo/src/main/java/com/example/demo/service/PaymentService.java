@@ -7,22 +7,31 @@ import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
 import com.example.demo.model.LabTest;
 import com.example.demo.model.Notification;
+import com.example.demo.model.Patient;
 import com.example.demo.model.Schedule;
 import com.example.demo.repository.AppointmentRepository;
 import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.HospitalRepository;
 import com.example.demo.repository.LabTestRepository;
 import com.example.demo.repository.NotificationRepository;
+import com.example.demo.repository.PatientRepository;
 import com.example.demo.repository.ScheduleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class PaymentService {
@@ -44,6 +53,15 @@ public class PaymentService {
 
     @Autowired
     private ScheduleRepository scheduleRepo;
+
+    @Autowired
+    private PatientRepository patientRepo;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     // This value is pulled from your .env file via application.properties
     @Value("${payhere.merchant.secret}")
@@ -125,6 +143,21 @@ public class PaymentService {
             } catch (Exception ignored) {}
         }
 
+        // Generate Medical History Access OTP ONLY upon successful payment if not already issued
+        String plainOtp = null;
+        if (appointment.getMedicalHistoryOtpHash() == null) {
+            try {
+                SecureRandom secureRandom = new SecureRandom();
+                int otpNum = 100000 + secureRandom.nextInt(900000);
+                plainOtp = String.valueOf(otpNum);
+                appointment.setMedicalHistoryOtpHash(passwordEncoder.encode(plainOtp));
+                appointment.setMedicalHistoryOtpFailedAttempts(0);
+                appointment.setMedicalHistoryOtpExpiresAt(calculateOtpExpiresAt(appointment.getDate(), appointment.getTime()));
+            } catch (Exception ex) {
+                System.err.println("Error generating medical history access OTP: " + ex.getMessage());
+            }
+        }
+
         Appointment savedAppointment = appointmentRepo.save(appointment);
 
         // Fetch Doctor Name for notifications
@@ -137,6 +170,29 @@ public class PaymentService {
                                 (d.getLastName() != null ? d.getLastName() : "")).trim())
                         .orElse("");
             } catch (Exception ignored) {}
+        }
+
+        // Send Medical History Access OTP to Patient's registered email
+        if (plainOtp != null && appointment.getPatientId() != null && patientRepo != null && emailService != null) {
+            try {
+                Optional<Patient> patientOpt = patientRepo.findById(appointment.getPatientId());
+                if (patientOpt.isPresent()) {
+                    Patient patient = patientOpt.get();
+                    if (patient.getEmail() != null && !patient.getEmail().trim().isEmpty()) {
+                        String patientFullName = ((patient.getFirstName() != null ? patient.getFirstName() : "") + " " +
+                                (patient.getLastName() != null ? patient.getLastName() : "")).trim();
+                        emailService.sendMedicalHistoryAccessOtp(
+                                patient.getEmail(),
+                                patientFullName,
+                                doctorName,
+                                appointment.getAppointmentNumber(),
+                                plainOtp
+                        );
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to send medical history access OTP email: " + e.getMessage());
+            }
         }
 
         String doctorSnippet = !doctorName.isEmpty() ? " with " + doctorName : "";
@@ -334,5 +390,34 @@ public class PaymentService {
         });
 
         return historyList;
+    }
+
+    private LocalDateTime calculateOtpExpiresAt(String dateStr, String timeStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            LocalDate date = LocalDate.parse(dateStr.trim());
+            LocalTime time = null;
+            if (timeStr != null && !timeStr.trim().isEmpty()) {
+                String trimmedTime = timeStr.trim();
+                String[] patterns = {"h:mm a", "hh:mm a", "H:mm", "HH:mm"};
+                for (String pattern : patterns) {
+                    try {
+                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH);
+                        time = LocalTime.parse(trimmedTime, formatter);
+                        break;
+                    } catch (Exception ignored) {}
+                }
+            }
+            if (time == null) {
+                time = LocalTime.of(23, 59, 59);
+            }
+            LocalDateTime consultationDateTime = LocalDateTime.of(date, time);
+            return consultationDateTime.plusHours(24);
+        } catch (Exception e) {
+            // Nullable fallback if unparseable
+            return null;
+        }
     }
 }

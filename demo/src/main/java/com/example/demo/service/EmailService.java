@@ -144,4 +144,37 @@ public class EmailService {
 
         mailSender.send(message);
     }
+
+    // Medical history temporary access OTP email
+    public void sendMedicalHistoryAccessOtp(
+            String to,
+            String patientName,
+            String doctorName,
+            String appointmentNumber,
+            String otp) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("Medical History Access Code - Appointment #" + (appointmentNumber != null ? appointmentNumber : ""));
+
+        String greeting = (patientName != null && !patientName.isBlank()) ? "Dear " + patientName + ",\n\n" : "Dear Patient,\n\n";
+        String doctorSnippet = (doctorName != null && !doctorName.isBlank()) ? doctorName : "your attending doctor";
+
+        message.setText(
+                greeting +
+                "Your payment for appointment #" + (appointmentNumber != null ? appointmentNumber : "") + " has been successfully confirmed.\n\n" +
+                "To safeguard your privacy, your medical history is confidential and restricted. If you wish to allow " +
+                doctorSnippet + " to view your medical history during your consultation, please share the following 6-digit access code:\n\n" +
+                "Access Code: " + otp + "\n\n" +
+                "IMPORTANT PRIVACY NOTICE:\n" +
+                "- Provide this code ONLY to your doctor during your consultation.\n" +
+                "- Once verified by your doctor, medical history access will remain active for exactly 1 hour.\n" +
+                "- After 1 hour, access will automatically expire.\n" +
+                "- If you do not wish to share your medical history, simply do not provide this code.\n\n" +
+                "Thank you,\n" +
+                "CDCM System"
+        );
+
+        mailSender.send(message);
+    }
 }

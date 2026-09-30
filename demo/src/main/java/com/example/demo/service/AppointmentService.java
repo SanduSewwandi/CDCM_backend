@@ -225,6 +225,11 @@ public class AppointmentService {
                     dto.setDoctorId(appt.getDoctorId());
                     dto.setPaid(appt.isPaid());
 
+                    boolean accessActive = appt.getMedicalHistoryAccessExpiresAt() != null
+                            && LocalDateTime.now().isBefore(appt.getMedicalHistoryAccessExpiresAt());
+                    dto.setMedicalHistoryAccessActive(accessActive);
+                    dto.setMedicalHistoryAccessExpiresAt(appt.getMedicalHistoryAccessExpiresAt());
+
                     // Fetch hospital name
                     if (appt.getHospitalId() != null) {
                         hospitalRepository.findById(appt.getHospitalId()).ifPresent(h -> {
@@ -304,6 +309,10 @@ public class AppointmentService {
                     dto.setDoctorId(appt.getDoctorId());
                     dto.setPaid(appt.isPaid());
 
+                    boolean docAccessActive = appt.getMedicalHistoryAccessExpiresAt() != null
+                            && LocalDateTime.now().isBefore(appt.getMedicalHistoryAccessExpiresAt());
+                    dto.setMedicalHistoryAccessActive(docAccessActive);
+                    dto.setMedicalHistoryAccessExpiresAt(appt.getMedicalHistoryAccessExpiresAt());
 
                     //  Fetch hospital name using the hospitalId from the appointment
                     if (appt.getHospitalId() != null) {
