@@ -281,5 +281,37 @@ public class DoctorService {
         return doctorRepository.findAll();
     }
 
+    // ================= CHANGE PASSWORD =================
+    public boolean changePassword(String email, String currentPassword, String newPassword) {
+        Doctor doctor = doctorRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
+        if (!passwordEncoder.matches(currentPassword, doctor.getPassword())) {
+            throw new RuntimeException("Current password does not match");
+        }
+
+        doctor.setPassword(passwordEncoder.encode(newPassword));
+        doctorRepository.save(doctor);
+        return true;
+    }
+
+    // ================= NOTIFICATION PREFERENCES =================
+    public com.example.demo.model.NotificationPreference getNotificationPreference(String email) {
+        Doctor doctor = doctorRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+        return doctor.getNotificationPreference();
+    }
+
+    public com.example.demo.model.NotificationPreference updateNotificationPreference(String email, com.example.demo.model.NotificationPreference preference) {
+        Doctor doctor = doctorRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+        doctor.setNotificationPreference(preference);
+        doctorRepository.save(doctor);
+        return doctor.getNotificationPreference();
+    }
+
+    public Doctor getDoctorByEmail(String email) {
+        return doctorRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+    }
 }

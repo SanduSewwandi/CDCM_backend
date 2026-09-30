@@ -1,8 +1,9 @@
- package com.example.demo.controller;
+package com.example.demo.controller;
 
 import com.example.demo.model.Appointment;
 import com.example.demo.model.Schedule;
 import com.example.demo.repository.AppointmentRepository;
+import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.ScheduleRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import com.example.demo.model.Notification;
 import com.example.demo.repository.NotificationRepository;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +29,9 @@ public class VideoAppointmentPayment {
 
     @Autowired
     private ScheduleRepository scheduleRepository;
+
+    @Autowired
+    private DoctorRepository doctorRepository;
 
     @Autowired
     private NotificationRepository notificationRepository;
@@ -288,6 +293,31 @@ public class VideoAppointmentPayment {
             // =================================================
 
             appointment.setStatus("PAID");
+            appointment.setPaymentStatus("PAID");
+            appointment.setPaid(true);
+            appointment.setPaidAt(LocalDateTime.now());
+
+            // Ensure hospitalId is populated if missing
+            if ((appointment.getHospitalId() == null || appointment.getHospitalId().trim().isEmpty() || "null".equalsIgnoreCase(appointment.getHospitalId()))
+                    && appointment.getScheduleId() != null && scheduleRepository != null) {
+                try {
+                    scheduleRepository.findById(appointment.getScheduleId()).ifPresent(s -> {
+                        if (s.getHospitalId() != null && !s.getHospitalId().trim().isEmpty()) {
+                            appointment.setHospitalId(s.getHospitalId());
+                        }
+                    });
+                } catch (Exception ignored) {}
+            }
+            if ((appointment.getHospitalId() == null || appointment.getHospitalId().trim().isEmpty() || "null".equalsIgnoreCase(appointment.getHospitalId()))
+                    && appointment.getDoctorId() != null && doctorRepository != null) {
+                try {
+                    doctorRepository.findById(appointment.getDoctorId()).ifPresent(d -> {
+                        if (d.getHospitals() != null && !d.getHospitals().isEmpty()) {
+                            appointment.setHospitalId(d.getHospitals().get(0));
+                        }
+                    });
+                } catch (Exception ignored) {}
+            }
 
             appointmentRepository.save(
                     appointment
@@ -308,6 +338,7 @@ public class VideoAppointmentPayment {
                     String timeStr = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
                     docNote.setMessage("A patient has successfully booked a video consultation with you for " + appointment.getDate() + timeStr + ".");
                     docNote.setRead(false);
+                    docNote.setCreatedAt(LocalDateTime.now());
 
                     notificationRepository.save(docNote);
                 }
@@ -330,6 +361,7 @@ public class VideoAppointmentPayment {
                     String timeSuffix = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
                     patNote.setMessage("Payment completed. Your video consultation is confirmed for " + appointment.getDate() + timeSuffix + ". Meeting link is available in your appointments.");
                     patNote.setRead(false);
+                    patNote.setCreatedAt(LocalDateTime.now());
                     notificationRepository.save(patNote);
                 }
             } catch (Exception e) {
@@ -338,10 +370,11 @@ public class VideoAppointmentPayment {
 
             // Notify Hospital: Video Consultation Confirmed
             try {
-                if (appointment.getHospitalId() != null && notificationRepository != null) {
+                String targetHospitalId = appointment.getHospitalId();
+                if (targetHospitalId != null && !targetHospitalId.trim().isEmpty() && !"null".equalsIgnoreCase(targetHospitalId) && notificationRepository != null) {
                     Notification hospNote = new Notification();
-                    hospNote.setUserId(appointment.getHospitalId());
-                    hospNote.setHospitalId(appointment.getHospitalId());
+                    hospNote.setUserId(targetHospitalId);
+                    hospNote.setHospitalId(targetHospitalId);
                     hospNote.setDoctorId(appointment.getDoctorId());
                     hospNote.setScheduleId(appointment.getScheduleId());
                     hospNote.setScheduleType("VIDEO");
@@ -350,7 +383,9 @@ public class VideoAppointmentPayment {
                     hospNote.setTitle("Video Appointment Confirmed");
                     hospNote.setMessage("Payment confirmed for video appointment on " + appointment.getDate() + ".");
                     hospNote.setRead(false);
+                    hospNote.setCreatedAt(LocalDateTime.now());
                     notificationRepository.save(hospNote);
+                    System.out.println("Video payment notification saved for hospital: " + targetHospitalId);
                 }
             } catch (Exception e) {
                 System.err.println("Failed to create hospital video notification: " + e.getMessage());

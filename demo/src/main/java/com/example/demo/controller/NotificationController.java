@@ -13,9 +13,18 @@ import java.util.*;
 public class NotificationController {
 
     private final NotificationRepository repo;
+    private final com.example.demo.service.PatientService patientService;
+    private final com.example.demo.service.DoctorService doctorService;
+    private final com.example.demo.service.HospitalService hospitalService;
 
-    public NotificationController(NotificationRepository repo) {
+    public NotificationController(NotificationRepository repo,
+                                  com.example.demo.service.PatientService patientService,
+                                  com.example.demo.service.DoctorService doctorService,
+                                  com.example.demo.service.HospitalService hospitalService) {
         this.repo = repo;
+        this.patientService = patientService;
+        this.doctorService = doctorService;
+        this.hospitalService = hospitalService;
     }
 
     // Get notifications for patient / doctor / hospital / user
@@ -34,13 +43,14 @@ public class NotificationController {
                     combined.add(n);
                 }
             }
+            // Fallback for legacy notifications where userId was not explicitly populated:
             for (Notification n : byHospital) {
-                if (n.getId() != null && seenIds.add(n.getId())) {
+                if (n.getId() != null && n.getUserId() == null && seenIds.add(n.getId())) {
                     combined.add(n);
                 }
             }
             for (Notification n : byDoctor) {
-                if (n.getId() != null && seenIds.add(n.getId())) {
+                if (n.getId() != null && n.getUserId() == null && seenIds.add(n.getId())) {
                     combined.add(n);
                 }
             }
@@ -74,10 +84,14 @@ public class NotificationController {
                 if (n.getId() != null) unreadIds.add(n.getId());
             }
             for (Notification n : repo.findByHospitalIdAndReadFalseOrderByCreatedAtDesc(userId)) {
-                if (n.getId() != null) unreadIds.add(n.getId());
+                if (n.getId() != null && n.getUserId() == null) {
+                    unreadIds.add(n.getId());
+                }
             }
             for (Notification n : repo.findByDoctorIdAndReadFalseOrderByCreatedAtDesc(userId)) {
-                if (n.getId() != null) unreadIds.add(n.getId());
+                if (n.getId() != null && n.getUserId() == null) {
+                    unreadIds.add(n.getId());
+                }
             }
 
             long totalUnread = unreadIds.size();
@@ -106,8 +120,16 @@ public class NotificationController {
         try {
             List<Notification> toUpdate = new ArrayList<>();
             toUpdate.addAll(repo.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId));
-            toUpdate.addAll(repo.findByHospitalIdAndReadFalseOrderByCreatedAtDesc(userId));
-            toUpdate.addAll(repo.findByDoctorIdAndReadFalseOrderByCreatedAtDesc(userId));
+            for (Notification n : repo.findByHospitalIdAndReadFalseOrderByCreatedAtDesc(userId)) {
+                if (n.getUserId() == null) {
+                    toUpdate.add(n);
+                }
+            }
+            for (Notification n : repo.findByDoctorIdAndReadFalseOrderByCreatedAtDesc(userId)) {
+                if (n.getUserId() == null) {
+                    toUpdate.add(n);
+                }
+            }
 
             Set<String> updatedIds = new HashSet<>();
             List<Notification> finalBatch = new ArrayList<>();
@@ -125,6 +147,60 @@ public class NotificationController {
             return ResponseEntity.ok(Map.of("message", "All notifications marked as read", "success", true, "count", finalBatch.size()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("message", "Error marking all as read: " + e.getMessage()));
+        }
+    }
+
+    // ================= NOTIFICATION PREFERENCES =================
+    @GetMapping("/preferences")
+    public ResponseEntity<?> getPreferences(java.security.Principal principal) {
+        if (principal == null || principal.getName() == null) {
+            return ResponseEntity.status(401).body(java.util.Map.of("message", "Authentication required"));
+        }
+
+        String email = principal.getName();
+        try {
+            try {
+                return ResponseEntity.ok(patientService.getNotificationPreference(email));
+            } catch (Exception ignored) {}
+
+            try {
+                return ResponseEntity.ok(doctorService.getNotificationPreference(email));
+            } catch (Exception ignored) {}
+
+            try {
+                return ResponseEntity.ok(hospitalService.getNotificationPreference(email));
+            } catch (Exception ignored) {}
+
+            return ResponseEntity.ok(new com.example.demo.model.NotificationPreference());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(java.util.Map.of("message", "Error fetching preferences: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/preferences")
+    public ResponseEntity<?> updatePreferences(java.security.Principal principal,
+                                               @RequestBody com.example.demo.model.NotificationPreference preference) {
+        if (principal == null || principal.getName() == null) {
+            return ResponseEntity.status(401).body(java.util.Map.of("message", "Authentication required"));
+        }
+
+        String email = principal.getName();
+        try {
+            try {
+                return ResponseEntity.ok(patientService.updateNotificationPreference(email, preference));
+            } catch (Exception ignored) {}
+
+            try {
+                return ResponseEntity.ok(doctorService.updateNotificationPreference(email, preference));
+            } catch (Exception ignored) {}
+
+            try {
+                return ResponseEntity.ok(hospitalService.updateNotificationPreference(email, preference));
+            } catch (Exception ignored) {}
+
+            return ResponseEntity.ok(preference);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(java.util.Map.of("message", "Error updating preferences: " + e.getMessage()));
         }
     }
 }

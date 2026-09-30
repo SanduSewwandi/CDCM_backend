@@ -7,11 +7,13 @@ import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
 import com.example.demo.model.LabTest;
 import com.example.demo.model.Notification;
+import com.example.demo.model.Schedule;
 import com.example.demo.repository.AppointmentRepository;
 import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.HospitalRepository;
 import com.example.demo.repository.LabTestRepository;
 import com.example.demo.repository.NotificationRepository;
+import com.example.demo.repository.ScheduleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,9 @@ public class PaymentService {
 
     @Autowired
     private HospitalRepository hospitalRepo;
+
+    @Autowired
+    private ScheduleRepository scheduleRepo;
 
     // This value is pulled from your .env file via application.properties
     @Value("${payhere.merchant.secret}")
@@ -97,40 +102,76 @@ public class PaymentService {
             appointment.setAmount(1000.00);
         }
 
+        // Ensure hospitalId is populated on the appointment if missing
+        if ((appointment.getHospitalId() == null || appointment.getHospitalId().trim().isEmpty() || "null".equalsIgnoreCase(appointment.getHospitalId()))
+                && appointment.getScheduleId() != null && scheduleRepo != null) {
+            try {
+                scheduleRepo.findById(appointment.getScheduleId()).ifPresent(s -> {
+                    if (s.getHospitalId() != null && !s.getHospitalId().trim().isEmpty()) {
+                        appointment.setHospitalId(s.getHospitalId());
+                    }
+                });
+            } catch (Exception ignored) {}
+        }
+        // Fallback: If still missing, check doctor's associated hospitals
+        if ((appointment.getHospitalId() == null || appointment.getHospitalId().trim().isEmpty() || "null".equalsIgnoreCase(appointment.getHospitalId()))
+                && appointment.getDoctorId() != null && doctorRepo != null) {
+            try {
+                doctorRepo.findById(appointment.getDoctorId()).ifPresent(d -> {
+                    if (d.getHospitals() != null && !d.getHospitals().isEmpty()) {
+                        appointment.setHospitalId(d.getHospitals().get(0));
+                    }
+                });
+            } catch (Exception ignored) {}
+        }
+
         Appointment savedAppointment = appointmentRepo.save(appointment);
 
-        // Create patient payment confirmation notification
-        if (appointment.getPatientId() != null && notificationRepo != null) {
-            String doctorName = "";
-            if (appointment.getDoctorId() != null && doctorRepo != null) {
+        // Fetch Doctor Name for notifications
+        String doctorName = "";
+        if (appointment.getDoctorId() != null && doctorRepo != null) {
+            try {
                 doctorName = doctorRepo.findById(appointment.getDoctorId())
                         .map(d -> ((d.getTitle() != null ? d.getTitle() : "Dr.") + " " +
                                 (d.getFirstName() != null ? d.getFirstName() : "") + " " +
                                 (d.getLastName() != null ? d.getLastName() : "")).trim())
                         .orElse("");
-            }
+            } catch (Exception ignored) {}
+        }
 
-            Notification note = new Notification();
-            note.setUserId(appointment.getPatientId());
-            note.setTitle("Appointment Confirmed");
-            String doctorSnippet = !doctorName.isEmpty() ? " with " + doctorName : "";
-            note.setMessage("Payment Successful for Appointment #" + 
-                    (appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : orderId) + 
-                    doctorSnippet + " on " + (appointment.getDate() != null ? appointment.getDate() : "") + 
-                    " at " + (appointment.getTime() != null ? appointment.getTime() : ""));
-            note.setCreatedAt(now);
-            note.setRead(false);
-            if (appointment.getDoctorId() != null) {
-                note.setDoctorId(appointment.getDoctorId());
-            }
-            if (!doctorName.isEmpty()) {
-                note.setDoctorName(doctorName);
-            }
-            note.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
+        String doctorSnippet = !doctorName.isEmpty() ? " with " + doctorName : "";
+        String apptNumStr = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : orderId;
+        String dateStr = appointment.getDate() != null ? appointment.getDate() : "";
+        String timeStr = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
 
-            notificationRepo.save(note);
+        // 1. Notify Patient
+        try {
+            if (appointment.getPatientId() != null && notificationRepo != null) {
+                Notification note = new Notification();
+                note.setUserId(appointment.getPatientId());
+                note.setTitle("Appointment Confirmed");
+                note.setMessage("Payment Successful for Appointment #" + apptNumStr + doctorSnippet + 
+                        (!dateStr.isEmpty() ? " on " + dateStr : "") + timeStr);
+                note.setCreatedAt(now);
+                note.setRead(false);
+                if (appointment.getDoctorId() != null) {
+                    note.setDoctorId(appointment.getDoctorId());
+                }
+                if (!doctorName.isEmpty()) {
+                    note.setDoctorName(doctorName);
+                }
+                if (appointment.getHospitalId() != null) {
+                    note.setHospitalId(appointment.getHospitalId());
+                }
+                note.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
+                notificationRepo.save(note);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to create patient payment notification: " + e.getMessage());
+        }
 
-            // Notify Doctor
+        // 2. Notify Doctor
+        try {
             if (appointment.getDoctorId() != null && notificationRepo != null) {
                 Notification docNote = new Notification();
                 docNote.setUserId(appointment.getDoctorId());
@@ -140,15 +181,13 @@ public class PaymentService {
                 docNote.setDate(appointment.getDate());
                 docNote.setTime(appointment.getTime());
                 docNote.setHospitalId(appointment.getHospitalId());
-                String timeStr = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
-                String apptNumStr = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : orderId;
 
                 if ("VIDEO".equalsIgnoreCase(appointment.getConsultationType())) {
                     docNote.setTitle("Video Consultation Confirmed");
-                    docNote.setMessage("Patient confirmed payment for video consultation on " + (appointment.getDate() != null ? appointment.getDate() : "") + timeStr + ".");
+                    docNote.setMessage("Patient confirmed payment for video consultation on " + dateStr + timeStr + ".");
                 } else {
                     docNote.setTitle("Appointment Confirmed & Paid");
-                    docNote.setMessage("Patient confirmed payment for Appointment #" + apptNumStr + " on " + (appointment.getDate() != null ? appointment.getDate() : "") + timeStr + ".");
+                    docNote.setMessage("Patient confirmed payment for Appointment #" + apptNumStr + " on " + dateStr + timeStr + ".");
                 }
                 docNote.setCreatedAt(now);
                 docNote.setRead(false);
@@ -157,12 +196,17 @@ public class PaymentService {
                 }
                 notificationRepo.save(docNote);
             }
+        } catch (Exception e) {
+            System.err.println("Failed to create doctor payment notification: " + e.getMessage());
+        }
 
-            // Notify Hospital
-            if (appointment.getHospitalId() != null && notificationRepo != null) {
+        // 3. Notify Hospital
+        try {
+            String targetHospitalId = appointment.getHospitalId();
+            if (targetHospitalId != null && !targetHospitalId.trim().isEmpty() && !"null".equalsIgnoreCase(targetHospitalId) && notificationRepo != null) {
                 Notification hospNote = new Notification();
-                hospNote.setUserId(appointment.getHospitalId());
-                hospNote.setHospitalId(appointment.getHospitalId());
+                hospNote.setUserId(targetHospitalId);
+                hospNote.setHospitalId(targetHospitalId);
                 hospNote.setDoctorId(appointment.getDoctorId());
                 hospNote.setDoctorName(doctorName);
                 hospNote.setScheduleId(appointment.getScheduleId());
@@ -170,12 +214,17 @@ public class PaymentService {
                 hospNote.setDate(appointment.getDate());
                 hospNote.setTime(appointment.getTime());
                 hospNote.setTitle("Payment Confirmed");
-                String apptNumStr = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : orderId;
-                hospNote.setMessage("Payment of LKR " + appointment.getAmount() + " confirmed for Appointment #" + apptNumStr + " with " + doctorName + ".");
+                String amountDisplay = String.format("%.2f", appointment.getAmount() > 0 ? appointment.getAmount() : 1000.00);
+                hospNote.setMessage("Payment of LKR " + amountDisplay + " confirmed for Appointment #" + apptNumStr + doctorSnippet + ".");
                 hospNote.setCreatedAt(now);
                 hospNote.setRead(false);
                 notificationRepo.save(hospNote);
+                System.out.println("Payment notification successfully created and saved for Hospital ID: " + targetHospitalId);
+            } else {
+                System.err.println("Warning: Hospital ID is missing for appointment " + orderId + ", unable to send hospital notification.");
             }
+        } catch (Exception e) {
+            System.err.println("Failed to create hospital payment notification: " + e.getMessage());
         }
 
         return savedAppointment;

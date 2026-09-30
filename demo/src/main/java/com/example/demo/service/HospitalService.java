@@ -425,4 +425,34 @@ public class HospitalService {
     public Hospital getHospitalById(String id) {
         return hospitalRepository.findById(id).orElse(null);
     }
+
+    // ================= CHANGE PASSWORD =================
+    public boolean changePassword(String email, String currentPassword, String newPassword) {
+        Hospital hospital = hospitalRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new RuntimeException("Hospital not found"));
+
+        if (!passwordEncoder.matches(currentPassword, hospital.getPassword())) {
+            throw new RuntimeException("Current password does not match");
+        }
+
+        hospital.setPassword(passwordEncoder.encode(newPassword));
+        hospital.setMustChangePassword(false);
+        hospitalRepository.save(hospital);
+        return true;
+    }
+
+    // ================= NOTIFICATION PREFERENCES =================
+    public com.example.demo.model.NotificationPreference getNotificationPreference(String email) {
+        Hospital hospital = hospitalRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new RuntimeException("Hospital not found"));
+        return hospital.getNotificationPreference();
+    }
+
+    public com.example.demo.model.NotificationPreference updateNotificationPreference(String email, com.example.demo.model.NotificationPreference preference) {
+        Hospital hospital = hospitalRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new RuntimeException("Hospital not found"));
+        hospital.setNotificationPreference(preference);
+        hospitalRepository.save(hospital);
+        return hospital.getNotificationPreference();
+    }
 }
