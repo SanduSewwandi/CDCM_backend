@@ -9,6 +9,8 @@ public interface AppointmentRepository extends MongoRepository<Appointment, Stri
 
     // This helps us auto-generate the appointment number
     long countByScheduleId(String scheduleId);
+
+    long countByScheduleIdAndStatus(String scheduleId, String status);
     List<Appointment> findByScheduleId(String scheduleId);
 
     List<Appointment> findByDoctorId(String doctorId);

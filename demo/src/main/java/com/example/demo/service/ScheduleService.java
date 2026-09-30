@@ -131,10 +131,26 @@ public class ScheduleService {
         // ----------------- DOCTOR SCHEDULES -----------------
         public List<Schedule> getDoctorSchedules(String doctorId) {
                 List<Schedule> schedules = scheduleRepository.findByDoctorId(doctorId);
-                populateDoctorAndHospitalInfo(schedules); //
+
+                populateDoctorAndHospitalInfo(schedules);
+                populateBookingCounts(schedules);
+
                 return schedules;
         }
 
+        private void populateBookingCounts(List<Schedule> schedules) {
+
+                for (Schedule schedule : schedules) {
+
+                        long bookedCount = appointmentRepository
+                                .countByScheduleIdAndStatus(
+                                        schedule.getId(),
+                                        "CONFIRMED"
+                                );
+
+                        schedule.setBookedPatientCount(bookedCount);
+                }
+        }
         // ----------------- HOSPITAL SCHEDULES -----------------
         public List<Schedule> getHospitalSchedules(String hospitalId) {
                 List<Schedule> schedules = scheduleRepository.findByHospitalId(hospitalId);
