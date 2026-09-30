@@ -30,6 +30,13 @@ public class Appointment {
     private boolean isPaid = false;
     private LocalDateTime paidAt;
 
+    // --- MEDICAL HISTORY OTP ACCESS FIELDS ---
+    private String medicalHistoryOtpHash;
+    private LocalDateTime medicalHistoryOtpExpiresAt;
+    private LocalDateTime medicalHistoryAccessGrantedAt;
+    private LocalDateTime medicalHistoryAccessExpiresAt;
+    private Integer medicalHistoryOtpFailedAttempts = 0;
+
     public Appointment() {
         this.status = "PENDING";
         this.paymentStatus = "PENDING";
@@ -99,5 +106,47 @@ public class Appointment {
 
     public void setMeetingLink(String meetingLink) {
         this.meetingLink = meetingLink;
+    }
+
+    // --- MEDICAL HISTORY OTP ACCESS GETTERS AND SETTERS ---
+
+    public String getMedicalHistoryOtpHash() {
+        return medicalHistoryOtpHash;
+    }
+
+    public void setMedicalHistoryOtpHash(String medicalHistoryOtpHash) {
+        this.medicalHistoryOtpHash = medicalHistoryOtpHash;
+    }
+
+    public LocalDateTime getMedicalHistoryOtpExpiresAt() {
+        return medicalHistoryOtpExpiresAt;
+    }
+
+    public void setMedicalHistoryOtpExpiresAt(LocalDateTime medicalHistoryOtpExpiresAt) {
+        this.medicalHistoryOtpExpiresAt = medicalHistoryOtpExpiresAt;
+    }
+
+    public LocalDateTime getMedicalHistoryAccessGrantedAt() {
+        return medicalHistoryAccessGrantedAt;
+    }
+
+    public void setMedicalHistoryAccessGrantedAt(LocalDateTime medicalHistoryAccessGrantedAt) {
+        this.medicalHistoryAccessGrantedAt = medicalHistoryAccessGrantedAt;
+    }
+
+    public LocalDateTime getMedicalHistoryAccessExpiresAt() {
+        return medicalHistoryAccessExpiresAt;
+    }
+
+    public void setMedicalHistoryAccessExpiresAt(LocalDateTime medicalHistoryAccessExpiresAt) {
+        this.medicalHistoryAccessExpiresAt = medicalHistoryAccessExpiresAt;
+    }
+
+    public Integer getMedicalHistoryOtpFailedAttempts() {
+        return medicalHistoryOtpFailedAttempts != null ? medicalHistoryOtpFailedAttempts : 0;
+    }
+
+    public void setMedicalHistoryOtpFailedAttempts(Integer medicalHistoryOtpFailedAttempts) {
+        this.medicalHistoryOtpFailedAttempts = medicalHistoryOtpFailedAttempts;
     }
 }
