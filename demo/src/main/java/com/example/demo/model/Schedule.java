@@ -2,6 +2,9 @@ package com.example.demo.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.annotation.Transient;
+
+
 
 @Document(collection = "schedules")
 public class Schedule {
@@ -12,8 +15,8 @@ public class Schedule {
 
     private String doctorId;
     private String hospitalId;
-    private String hospitalName;      // Populated dynamically
-    private String hospitalLocation;  // Populated dynamically
+    private String hospitalName;
+    private String hospitalLocation;
 
     private String date;
     private String startTime;
@@ -24,6 +27,9 @@ public class Schedule {
 
     private String doctorName;
     private String specialty;
+
+    @Transient
+    private long bookedPatientCount;
 
     public Schedule() {}
 
@@ -85,4 +91,10 @@ public class Schedule {
 
     public String getSpecialty() { return specialty; }
     public void setSpecialty(String specialty) { this.specialty = specialty; }
+
+    public long getBookedPatientCount() {
+        return bookedPatientCount; }
+
+    public void setBookedPatientCount(long bookedPatientCount) {
+        this.bookedPatientCount = bookedPatientCount; }
 }
