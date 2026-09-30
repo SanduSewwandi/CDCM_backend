@@ -225,6 +225,11 @@ public class AppointmentService {
                     dto.setDoctorId(appt.getDoctorId());
                     dto.setPaid(appt.isPaid());
 
+                    boolean accessActive = appt.getMedicalHistoryAccessExpiresAt() != null
+                            && LocalDateTime.now().isBefore(appt.getMedicalHistoryAccessExpiresAt());
+                    dto.setMedicalHistoryAccessActive(accessActive);
+                    dto.setMedicalHistoryAccessExpiresAt(appt.getMedicalHistoryAccessExpiresAt());
+
                     // Fetch hospital name
                     if (appt.getHospitalId() != null) {
                         hospitalRepository.findById(appt.getHospitalId()).ifPresent(h -> {
@@ -233,15 +238,17 @@ public class AppointmentService {
                     }
 
                     // Fetch patient name from Patient collection
-                    patientRepository.findById(appt.getPatientId()).ifPresent(p -> {
-                        dto.setPatientName(p.getFirstName() + " " + p.getLastName());
-                        dto.setProfileImage(p.getProfileImage());
-                    });
+                    if (appt.getPatientId() != null) {
+                        patientRepository.findById(appt.getPatientId()).ifPresent(p -> {
+                            dto.setPatientName(p.getFirstName() + " " + p.getLastName());
+                            dto.setProfileImage(p.getProfileImage());
+                        });
+                    }
 
                     return dto;
                 })
-                .sorted(Comparator.comparing(AppointmentResponseDTO::getDate).reversed()
-                        .thenComparing(AppointmentResponseDTO::getAppointmentNumber))
+                .sorted(Comparator.comparing(AppointmentResponseDTO::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(AppointmentResponseDTO::getAppointmentNumber, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
     }
 
@@ -302,6 +309,10 @@ public class AppointmentService {
                     dto.setDoctorId(appt.getDoctorId());
                     dto.setPaid(appt.isPaid());
 
+                    boolean docAccessActive = appt.getMedicalHistoryAccessExpiresAt() != null
+                            && LocalDateTime.now().isBefore(appt.getMedicalHistoryAccessExpiresAt());
+                    dto.setMedicalHistoryAccessActive(docAccessActive);
+                    dto.setMedicalHistoryAccessExpiresAt(appt.getMedicalHistoryAccessExpiresAt());
 
                     //  Fetch hospital name using the hospitalId from the appointment
                     if (appt.getHospitalId() != null) {
@@ -313,16 +324,18 @@ public class AppointmentService {
                     }
 
                     // Fetch patient details from the Patient collection
-                    patientRepository.findById(appt.getPatientId()).ifPresent(p -> {
-                        dto.setPatientName(p.getFirstName() + " " + p.getLastName());
-                        dto.setProfileImage(p.getProfileImage());
-                    });
+                    if (appt.getPatientId() != null) {
+                        patientRepository.findById(appt.getPatientId()).ifPresent(p -> {
+                            dto.setPatientName(p.getFirstName() + " " + p.getLastName());
+                            dto.setProfileImage(p.getProfileImage());
+                        });
+                    }
 
                     return dto;
                 })
                 // Sort by Date first (Newest first), then by Appointment Number
-                .sorted(Comparator.comparing(AppointmentResponseDTO::getDate).reversed()
-                        .thenComparing(AppointmentResponseDTO::getAppointmentNumber))
+                .sorted(Comparator.comparing(AppointmentResponseDTO::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(AppointmentResponseDTO::getAppointmentNumber, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
     }
 }
