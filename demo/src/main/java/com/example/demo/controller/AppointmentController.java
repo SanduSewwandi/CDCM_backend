@@ -52,5 +52,14 @@ public class AppointmentController {
         return appointmentService.getAppointmentsByHospital(hospitalId);
     }
 
+    // Explicitly release / cancel a pending appointment that failed or was dismissed
+    @PutMapping("/cancel-pending/{appointmentId}")
+    public Appointment cancelPendingAppointmentPut(@PathVariable String appointmentId) {
+        return appointmentService.cancelPendingAppointment(appointmentId);
+    }
 
+    @PostMapping("/cancel-pending/{appointmentId}")
+    public Appointment cancelPendingAppointmentPost(@PathVariable String appointmentId) {
+        return appointmentService.cancelPendingAppointment(appointmentId);
+    }
 }

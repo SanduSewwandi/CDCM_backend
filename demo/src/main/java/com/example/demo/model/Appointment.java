@@ -37,10 +37,14 @@ public class Appointment {
     private LocalDateTime medicalHistoryAccessExpiresAt;
     private Integer medicalHistoryOtpFailedAttempts = 0;
 
+    // --- APPOINTMENT CREATION / HOLD TIMESTAMP ---
+    private LocalDateTime createdAt = LocalDateTime.now();
+
     public Appointment() {
         this.status = "PENDING";
         this.paymentStatus = "PENDING";
         this.isPaid = false;
+        this.createdAt = LocalDateTime.now();
     }
 
     // --- GETTERS AND SETTERS ---
@@ -148,5 +152,13 @@ public class Appointment {
 
     public void setMedicalHistoryOtpFailedAttempts(Integer medicalHistoryOtpFailedAttempts) {
         this.medicalHistoryOtpFailedAttempts = medicalHistoryOtpFailedAttempts;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }
