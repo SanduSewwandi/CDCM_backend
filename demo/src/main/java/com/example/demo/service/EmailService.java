@@ -25,7 +25,7 @@ public class EmailService {
     // NEW → Password reset email
     public void sendPasswordResetEmail(String to, String token) {
 
-        String resetLink = "http://localhost:5173/reset-password/" + token;
+        String resetLink = "https://cdcm-frontend.vercel.app/reset-password/" + token;
 
         SimpleMailMessage msg = new SimpleMailMessage();
         msg.setTo(to);

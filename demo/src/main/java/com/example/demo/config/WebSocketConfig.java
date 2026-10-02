@@ -29,7 +29,8 @@ public class WebSocketConfig
 
         registry.addEndpoint("/ws")
                 .setAllowedOrigins(
-                        "http://localhost:5173"
+                        "http://localhost:5173",
+                        "https://cdcm-frontend.vercel.app"
                 )
                 .withSockJS();
     }
