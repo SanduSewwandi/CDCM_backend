@@ -59,19 +59,66 @@ public class ScheduleService {
 
                 String type = request.getType();
 
-                // FORCE VALID TYPE
-                if (type == null || type.isEmpty()) {
+// Default type
+                if (type == null || type.isBlank()) {
                         type = "PHYSICAL";
+                }
+
+                type = type.toUpperCase();
+
+// Validate schedule type
+                if (!type.equals("PHYSICAL") && !type.equals("VIDEO")) {
+                        throw new RuntimeException(
+                                "Invalid schedule type. Only PHYSICAL or VIDEO is allowed."
+                        );
                 }
 
                 schedule.setType(type);
 
-                // ONLY VIDEO HAS MEETING LINK
-                if ("VIDEO".equalsIgnoreCase(type)) {
-                        schedule.setMeetingLink(request.getMeetingLink());
-                } else {
+
+// =========================================================
+// PHYSICAL / VIDEO SPECIFIC FIELDS
+// =========================================================
+
+                if ("PHYSICAL".equals(type)) {
+
+                        // Room is required for physical schedules
+                        if (request.getRoomNumber() == null ||
+                                request.getRoomNumber().isBlank()) {
+
+                                throw new RuntimeException(
+                                        "Room number is required for PHYSICAL schedules."
+                                );
+                        }
+
+                        schedule.setRoomNumber(request.getRoomNumber());
+
+                        // Physical schedule does not need a meeting link
                         schedule.setMeetingLink(null);
+
+                } else {
+
+                        // VIDEO schedule does not need a physical room
+                        schedule.setRoomNumber(null);
+
+                        // Meeting link can be stored for VIDEO
+                        schedule.setMeetingLink(request.getMeetingLink());
                 }
+
+
+
+               // MAXIMUM PATIENTS
+
+                if (request.getMaximumPatients() <= 0) {
+
+                        throw new RuntimeException(
+                                "Maximum patients must be greater than 0."
+                        );
+                }
+
+                schedule.setMaximumPatients(
+                        request.getMaximumPatients()
+                );
 
                 Schedule savedSchedule = scheduleRepository.save(schedule);
 
@@ -137,30 +184,66 @@ public class ScheduleService {
 
                 return schedules;
         }
-
         private void populateBookingCounts(List<Schedule> schedules) {
 
                 for (Schedule schedule : schedules) {
 
-                        long bookedCount = appointmentRepository
-                                .countByScheduleIdAndStatus(
+                        // Count confirmed appointments
+                        long confirmedCount =
+                                appointmentRepository.countByScheduleIdAndStatus(
                                         schedule.getId(),
                                         "CONFIRMED"
                                 );
 
+                        // Count completed appointments
+                        long completedCount =
+                                appointmentRepository.countByScheduleIdAndStatus(
+                                        schedule.getId(),
+                                        "COMPLETED"
+                                );
+
+                        // Total booked appointments
+                        long bookedCount = confirmedCount + completedCount;
+
                         schedule.setBookedPatientCount(bookedCount);
+
+                        // Calculate available slots
+                        long availableSlots =
+                                schedule.getMaximumPatients() - bookedCount;
+
+                        // Never allow negative available slots
+                        if (availableSlots < 0) {
+                                availableSlots = 0;
+                        }
+
+                        schedule.setAvailableSlots(availableSlots);
                 }
         }
         // ----------------- HOSPITAL SCHEDULES -----------------
         public List<Schedule> getHospitalSchedules(String hospitalId) {
-                List<Schedule> schedules = scheduleRepository.findByHospitalId(hospitalId);
+
+                List<Schedule> schedules =
+                        scheduleRepository.findByHospitalId(hospitalId);
+
                 populateDoctorAndHospitalInfo(schedules);
+                populateBookingCounts(schedules);
+
                 return schedules;
         }
 
-        public List<Schedule> getHospitalSchedulesByDate(String hospitalId, String date) {
-                List<Schedule> schedules = scheduleRepository.findByHospitalIdAndDate(hospitalId, date);
+        public List<Schedule> getHospitalSchedulesByDate(
+                String hospitalId,
+                String date) {
+
+                List<Schedule> schedules =
+                        scheduleRepository.findByHospitalIdAndDate(
+                                hospitalId,
+                                date
+                        );
+
                 populateDoctorAndHospitalInfo(schedules);
+                populateBookingCounts(schedules);
+
                 return schedules;
         }
 

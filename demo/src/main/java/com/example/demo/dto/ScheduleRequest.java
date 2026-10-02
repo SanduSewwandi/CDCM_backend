@@ -4,19 +4,36 @@ public class ScheduleRequest {
 
     private String doctorId;
     private String hospitalId;
+
     private String date;
     private String startTime;
     private String endTime;
 
-    private String type;         // PHYSICAL / VIDEO
-    private String meetingLink;  // for VIDEO only
+    // PHYSICAL / VIDEO
+    private String type;
 
+    // For VIDEO schedules only
+    private String meetingLink;
+
+    // For PHYSICAL schedules only
+    private String roomNumber;
+
+    // Maximum number of patients allowed
+    private int maximumPatients;
+
+
+    // =========================
     // Default Constructor
-    public ScheduleRequest() {
+    // =========================
 
+    public ScheduleRequest() {
     }
 
+
+    // =========================
     // Parameterized Constructor
+    // =========================
+
     public ScheduleRequest(
             String doctorId,
             String hospitalId,
@@ -24,7 +41,10 @@ public class ScheduleRequest {
             String startTime,
             String endTime,
             String type,
-            String meetingLink) {
+            String meetingLink,
+            String roomNumber,
+            int maximumPatients) {
+
         this.doctorId = doctorId;
         this.hospitalId = hospitalId;
         this.date = date;
@@ -32,9 +52,15 @@ public class ScheduleRequest {
         this.endTime = endTime;
         this.type = type;
         this.meetingLink = meetingLink;
+        this.roomNumber = roomNumber;
+        this.maximumPatients = maximumPatients;
     }
 
-    // Getter and Setter for doctorId
+
+    // =========================
+    // Doctor ID
+    // =========================
+
     public String getDoctorId() {
         return doctorId;
     }
@@ -43,7 +69,11 @@ public class ScheduleRequest {
         this.doctorId = doctorId;
     }
 
-    // Getter and Setter for hospitalId
+
+    // =========================
+    // Hospital ID
+    // =========================
+
     public String getHospitalId() {
         return hospitalId;
     }
@@ -52,7 +82,11 @@ public class ScheduleRequest {
         this.hospitalId = hospitalId;
     }
 
-    // Getter and Setter for date
+
+    // =========================
+    // Date
+    // =========================
+
     public String getDate() {
         return date;
     }
@@ -61,7 +95,11 @@ public class ScheduleRequest {
         this.date = date;
     }
 
-    // Getter and Setter for startTime
+
+    // =========================
+    // Start Time
+    // =========================
+
     public String getStartTime() {
         return startTime;
     }
@@ -70,7 +108,11 @@ public class ScheduleRequest {
         this.startTime = startTime;
     }
 
-    // Getter and Setter for endTime
+
+    // =========================
+    // End Time
+    // =========================
+
     public String getEndTime() {
         return endTime;
     }
@@ -78,6 +120,11 @@ public class ScheduleRequest {
     public void setEndTime(String endTime) {
         this.endTime = endTime;
     }
+
+
+    // =========================
+    // Schedule Type
+    // =========================
 
     public String getType() {
         return type;
@@ -87,11 +134,42 @@ public class ScheduleRequest {
         this.type = type;
     }
 
+
+    // =========================
+    // Meeting Link
+    // =========================
+
     public String getMeetingLink() {
         return meetingLink;
     }
 
     public void setMeetingLink(String meetingLink) {
         this.meetingLink = meetingLink;
+    }
+
+
+    // =========================
+    // Room Number
+    // =========================
+
+    public String getRoomNumber() {
+        return roomNumber;
+    }
+
+    public void setRoomNumber(String roomNumber) {
+        this.roomNumber = roomNumber;
+    }
+
+
+    // =========================
+    // Maximum Patients
+    // =========================
+
+    public int getMaximumPatients() {
+        return maximumPatients;
+    }
+
+    public void setMaximumPatients(int maximumPatients) {
+        this.maximumPatients = maximumPatients;
     }
 }
