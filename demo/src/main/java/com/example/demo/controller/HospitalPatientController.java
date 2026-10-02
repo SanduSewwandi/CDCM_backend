@@ -20,7 +20,12 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/hospital/patients")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://cdcm-frontend.vercel.app"
+        }
+)
 public class HospitalPatientController {
 
     private static final Logger logger = LoggerFactory.getLogger(HospitalPatientController.class);
