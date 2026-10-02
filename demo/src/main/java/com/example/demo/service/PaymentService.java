@@ -219,6 +219,15 @@ public class PaymentService {
                 if (appointment.getHospitalId() != null) {
                     note.setHospitalId(appointment.getHospitalId());
                 }
+                if (appointment.getScheduleId() != null) {
+                    note.setScheduleId(appointment.getScheduleId());
+                }
+                if (appointment.getDate() != null) {
+                    note.setDate(appointment.getDate());
+                }
+                if (appointment.getTime() != null) {
+                    note.setTime(appointment.getTime());
+                }
                 note.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
                 notificationRepo.save(note);
             }

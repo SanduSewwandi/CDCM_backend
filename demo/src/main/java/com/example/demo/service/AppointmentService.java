@@ -164,25 +164,9 @@ public class AppointmentService {
             String timeSuffix = timeStr.isEmpty() ? "" : " at " + timeStr;
             String apptNum = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : "N/A";
 
-            // 1. Notify Patient
-            if (appointment.getPatientId() != null && notificationRepository != null) {
-                Notification patientNote = new Notification();
-                patientNote.setUserId(appointment.getPatientId());
-                patientNote.setTitle("Appointment Booked Successfully");
-                patientNote.setDoctorId(appointment.getDoctorId());
-                patientNote.setDoctorName(doctorName);
-                patientNote.setScheduleId(appointment.getScheduleId());
-                patientNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
-                patientNote.setDate(appointment.getDate());
-                patientNote.setTime(appointment.getTime());
-                patientNote.setHospitalId(appointment.getHospitalId());
-                patientNote.setRead(false);
-                patientNote.setCreatedAt(now);
-                patientNote.setMessage("Your appointment (" + apptNum + ") with " + doctorName + " is booked for " + dateStr + timeSuffix + ". Please complete payment to confirm.");
-                notificationRepository.save(patientNote);
-            }
+            // Note: Patient notification is sent only after successful payment confirmation in PaymentService
 
-            // 2. Notify Doctor
+            // 1. Notify Doctor
             if (appointment.getDoctorId() != null && notificationRepository != null) {
                 Notification docNote = new Notification();
                 docNote.setUserId(appointment.getDoctorId());
