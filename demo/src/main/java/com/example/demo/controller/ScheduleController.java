@@ -9,7 +9,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/schedules")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://cdcm-frontend.vercel.app"
+        }
+)
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
@@ -42,8 +47,9 @@ public class ScheduleController {
     // ----------------- DOCTOR SCHEDULES -----------------
 
     @GetMapping("/doctor/{doctorId}")
-    public List<Schedule> getDoctorSchedules(@PathVariable String doctorId) {
-        //  Calls service that populates doctorName and hospitalName
+    public List<Schedule> getDoctorSchedules(
+            @PathVariable String doctorId
+    ) {
         return scheduleService.getDoctorSchedules(doctorId);
     }
 
@@ -54,15 +60,19 @@ public class ScheduleController {
         return scheduleService.acceptSchedule(id);
     }
 
-
     @PutMapping("/reject/{id}")
     public Schedule rejectSchedule(@PathVariable String id) {
         return scheduleService.rejectSchedule(id);
     }
 
+    // ----------------- CANCEL SCHEDULE -----------------
+
     @PutMapping("/cancel/{id}")
     public Schedule cancelSchedule(@PathVariable String id) {
-        System.out.println("Controller hit: cancel schedule with id = " + id);
+        System.out.println(
+                "Controller hit: cancel schedule with id = " + id
+        );
+
         return scheduleService.cancelSchedule(id);
     }
 }

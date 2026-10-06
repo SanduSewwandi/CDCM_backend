@@ -10,7 +10,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/appointments")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://cdcm-frontend.vercel.app"
+        }
+)
 public class AppointmentController {
 
     @Autowired
@@ -52,5 +57,14 @@ public class AppointmentController {
         return appointmentService.getAppointmentsByHospital(hospitalId);
     }
 
+    // Explicitly release / cancel a pending appointment that failed or was dismissed
+    @PutMapping("/cancel-pending/{appointmentId}")
+    public Appointment cancelPendingAppointmentPut(@PathVariable String appointmentId) {
+        return appointmentService.cancelPendingAppointment(appointmentId);
+    }
 
+    @PostMapping("/cancel-pending/{appointmentId}")
+    public Appointment cancelPendingAppointmentPost(@PathVariable String appointmentId) {
+        return appointmentService.cancelPendingAppointment(appointmentId);
+    }
 }

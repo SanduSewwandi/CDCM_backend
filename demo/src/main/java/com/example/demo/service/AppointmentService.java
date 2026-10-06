@@ -49,6 +49,27 @@ public class AppointmentService {
 
 
     public Appointment bookAppointment(Appointment appointment) {
+        // Clean up any prior unconfirmed/unpaid attempts for this patient on this schedule so they can retry
+        if (appointment.getPatientId() != null && appointment.getScheduleId() != null && appointmentRepository != null) {
+            try {
+                List<Appointment> existingList = appointmentRepository.findByPatientId(appointment.getPatientId());
+                if (existingList != null) {
+                    for (Appointment existing : existingList) {
+                        if (appointment.getScheduleId().equals(existing.getScheduleId())
+                                && (appointment.getDoctorId() == null || appointment.getDoctorId().equals(existing.getDoctorId()))) {
+                            if (existing.isPaid() || "CONFIRMED".equalsIgnoreCase(existing.getStatus()) || "PAID".equalsIgnoreCase(existing.getPaymentStatus())) {
+                                throw new IllegalArgumentException("You have already booked this doctor's schedule.");
+                            } else {
+                                appointmentRepository.delete(existing);
+                            }
+                        }
+                    }
+                }
+            } catch (IllegalArgumentException e) {
+                throw e;
+            } catch (Exception ignored) {}
+        }
+
         if (appointmentRepository.existsByPatientIdAndDoctorIdAndScheduleId(
                 appointment.getPatientId(),
                 appointment.getDoctorId(),
@@ -63,6 +84,7 @@ public class AppointmentService {
         appointment.setStatus("PENDING");
         appointment.setPaymentStatus("PENDING");
         appointment.setPaid(false);
+        appointment.setCreatedAt(LocalDateTime.now());
         if (appointment.getAmount() <= 0) {
             appointment.setAmount(1000.00);
         }
@@ -142,25 +164,9 @@ public class AppointmentService {
             String timeSuffix = timeStr.isEmpty() ? "" : " at " + timeStr;
             String apptNum = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : "N/A";
 
-            // 1. Notify Patient
-            if (appointment.getPatientId() != null && notificationRepository != null) {
-                Notification patientNote = new Notification();
-                patientNote.setUserId(appointment.getPatientId());
-                patientNote.setTitle("Appointment Booked Successfully");
-                patientNote.setDoctorId(appointment.getDoctorId());
-                patientNote.setDoctorName(doctorName);
-                patientNote.setScheduleId(appointment.getScheduleId());
-                patientNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
-                patientNote.setDate(appointment.getDate());
-                patientNote.setTime(appointment.getTime());
-                patientNote.setHospitalId(appointment.getHospitalId());
-                patientNote.setRead(false);
-                patientNote.setCreatedAt(now);
-                patientNote.setMessage("Your appointment (" + apptNum + ") with " + doctorName + " is booked for " + dateStr + timeSuffix + ". Please complete payment to confirm.");
-                notificationRepository.save(patientNote);
-            }
+            // Note: Patient notification is sent only after successful payment confirmation in PaymentService
 
-            // 2. Notify Doctor
+            // 1. Notify Doctor
             if (appointment.getDoctorId() != null && notificationRepository != null) {
                 Notification docNote = new Notification();
                 docNote.setUserId(appointment.getDoctorId());
@@ -206,7 +212,32 @@ public class AppointmentService {
     }
 
     public List<Appointment> getAppointmentsBySchedule(String scheduleId) {
-        return appointmentRepository.findByScheduleId(scheduleId);
+        List<Appointment> all = appointmentRepository.findByScheduleId(scheduleId);
+        if (all == null) return List.of();
+
+        return all.stream()
+                .filter(appt -> appt.isPaid()
+                        || "CONFIRMED".equalsIgnoreCase(appt.getStatus())
+                        || "PAID".equalsIgnoreCase(appt.getPaymentStatus()))
+                .collect(Collectors.toList());
+    }
+
+    public Appointment cancelPendingAppointment(String appointmentId) {
+        if (appointmentId == null || appointmentId.trim().isEmpty()) {
+            return null;
+        }
+        Optional<Appointment> opt = appointmentRepository.findById(appointmentId.trim());
+        if (opt.isPresent()) {
+            Appointment appt = opt.get();
+            // Only cancel if it has not already been confirmed or paid
+            if (!appt.isPaid() && !"PAID".equalsIgnoreCase(appt.getPaymentStatus()) && !"CONFIRMED".equalsIgnoreCase(appt.getStatus())) {
+                appt.setStatus("CANCELLED");
+                appt.setPaymentStatus("FAILED");
+                return appointmentRepository.save(appt);
+            }
+            return appt;
+        }
+        return null;
     }
 
     //getAppointmentsByDoctor

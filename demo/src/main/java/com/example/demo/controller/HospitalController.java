@@ -16,7 +16,12 @@ import com.example.demo.dto.HospitalProfileDTO;
 
 @RestController
 @RequestMapping("/api/hospitals")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://cdcm-frontend.vercel.app"
+        }
+)
 public class HospitalController {
 
     private final HospitalService hospitalService;
@@ -252,4 +257,4 @@ public class HospitalController {
                     );
         }
     }
-}
+}
