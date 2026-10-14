@@ -12,8 +12,12 @@ import org.springframework.stereotype.Service;
 import com.example.demo.model.Notification;
 import com.example.demo.model.Patient;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class ScheduleService {
@@ -251,6 +255,11 @@ public class ScheduleService {
         public Schedule acceptSchedule(String id) {
                 Schedule schedule = scheduleRepository.findById(id)
                                 .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
+
+                if (isSchedulePast(schedule.getDate(), schedule.getEndTime())) {
+                        throw new IllegalArgumentException("Cannot accept an expired schedule.");
+                }
+
                 schedule.setStatus("ACCEPTED");
                 Schedule saved = scheduleRepository.save(schedule);
 
@@ -293,6 +302,11 @@ public class ScheduleService {
         public Schedule rejectSchedule(String id) {
                 Schedule schedule = scheduleRepository.findById(id)
                                 .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
+
+                if (isSchedulePast(schedule.getDate(), schedule.getEndTime())) {
+                        throw new IllegalArgumentException("Cannot reject an expired schedule.");
+                }
+
                 schedule.setStatus("REJECTED");
                 Schedule saved = scheduleRepository.save(schedule);
 
@@ -353,6 +367,16 @@ public class ScheduleService {
 
                                 throw new RuntimeException(
                                                 "Only accepted schedules can be cancelled.");
+                        }
+
+                        // =========================================================
+                        // 2.1. EXPIRED SCHEDULE CANNOT BE CANCELLED
+                        // =========================================================
+
+                        if (isSchedulePast(schedule.getDate(), schedule.getEndTime())) {
+
+                                throw new IllegalArgumentException(
+                                                "Cannot cancel an expired schedule.");
                         }
 
                         // =========================================================
@@ -820,11 +844,65 @@ public class ScheduleService {
 
                         return updatedSchedule;
 
+                } catch (IllegalArgumentException e) {
+
+                        throw e;
+
                 } catch (Exception e) {
 
                         throw new RuntimeException(
                                         "Error while cancelling schedule: "
                                                         + e.getMessage());
+                }
+        }
+
+        private boolean isSchedulePast(String dateStr, String timeStr) {
+                if (dateStr == null || dateStr.trim().isEmpty()) {
+                        return false;
+                }
+
+                try {
+                        LocalDate date = null;
+                        String trimmedDate = dateStr.trim();
+                        if (trimmedDate.contains("T")) {
+                                trimmedDate = trimmedDate.split("T")[0].trim();
+                        }
+
+                        String[] datePatterns = { "yyyy-MM-dd", "yyyy/MM/dd", "dd-MM-yyyy", "dd/MM/yyyy" };
+                        for (String pattern : datePatterns) {
+                                try {
+                                        date = LocalDate.parse(trimmedDate, DateTimeFormatter.ofPattern(pattern));
+                                        break;
+                                } catch (Exception ignored) {
+                                }
+                        }
+
+                        if (date == null) {
+                                return false;
+                        }
+
+                        LocalTime time = null;
+                        if (timeStr != null && !timeStr.trim().isEmpty()) {
+                                String trimmedTime = timeStr.trim();
+                                String[] timePatterns = { "h:mm a", "hh:mm a", "H:mm", "HH:mm", "H:mm:ss", "HH:mm:ss" };
+                                for (String pattern : timePatterns) {
+                                        try {
+                                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH);
+                                                time = LocalTime.parse(trimmedTime, formatter);
+                                                break;
+                                        } catch (Exception ignored) {
+                                        }
+                                }
+                        }
+
+                        if (time == null) {
+                                time = LocalTime.MIN;
+                        }
+
+                        LocalDateTime scheduleDateTime = LocalDateTime.of(date, time);
+                        return !scheduleDateTime.isAfter(LocalDateTime.now());
+                } catch (Exception e) {
+                        return false;
                 }
         }
 
