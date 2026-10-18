@@ -11,10 +11,10 @@ import java.util.Properties;
 @Configuration
 public class MailConfig {
 
-    @Value("${spring.mail.host:smtp.gmail.com}")
+    @Value("${spring.mail.host:${MAIL_HOST:smtp-relay.brevo.com}}")
     private String host;
 
-    @Value("${spring.mail.port:587}")
+    @Value("${spring.mail.port:${MAIL_PORT:587}}")
     private int port;
 
     @Value("${spring.mail.username:${MAIL_USERNAME:}}")
@@ -27,7 +27,7 @@ public class MailConfig {
     public JavaMailSender javaMailSender() {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
 
-        String resolvedHost = (host != null && !host.isBlank()) ? host.trim() : "smtp.gmail.com";
+        String resolvedHost = (host != null && !host.isBlank()) ? host.trim() : "smtp-relay.brevo.com";
         int resolvedPort = (port > 0) ? port : 587;
 
         mailSender.setHost(resolvedHost);

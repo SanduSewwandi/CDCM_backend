@@ -12,6 +12,7 @@ import com.example.demo.service.DoctorService;
 import com.example.demo.service.HospitalService;
 import com.example.demo.service.PatientService;
 import com.example.demo.service.AdminService;
+import com.example.demo.service.EmailService;
 import com.example.demo.security.JwtService;
 
 import jakarta.validation.Valid;
@@ -27,19 +28,40 @@ public class AuthController {
     private final HospitalService hospitalService;
     private final AdminService adminService;
     private final JwtService jwtService;
-
+    private final EmailService emailService;
 
     public AuthController(PatientService patientService,
                           DoctorService doctorService,
                           HospitalService hospitalService,
                           AdminService adminService,
-                          JwtService jwtService) {
+                          JwtService jwtService,
+                          EmailService emailService) {
 
         this.patientService = patientService;
         this.doctorService = doctorService;
         this.hospitalService = hospitalService;
         this.adminService = adminService;
         this.jwtService = jwtService;
+        this.emailService = emailService;
+    }
+
+    // TEST EMAIL ENDPOINT (BREVO SMTP)
+    @PostMapping("/test-email")
+    public ResponseEntity<?> testEmail(@RequestBody java.util.Map<String, String> request) {
+        String email = request.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(java.util.Collections.singletonMap("message", "Email is required"));
+        }
+        try {
+            emailService.sendOtp(email.trim(), "123456");
+            return ResponseEntity.ok(
+                    java.util.Collections.singletonMap("message", "Test email sent successfully to " + email.trim())
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(java.util.Collections.singletonMap("message", "Failed to send email: " + e.getMessage()));
+        }
     }
 
     // VERIFY EMAIL (OTP)
