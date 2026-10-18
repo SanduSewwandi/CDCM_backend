@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resend.Resend;
 import com.resend.core.exception.ResendException;
 import com.resend.services.emails.model.CreateEmailOptions;
@@ -13,7 +14,15 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailService {
@@ -21,6 +30,9 @@ public class EmailService {
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     private final JavaMailSender mailSender;
+
+    @Value("${brevo.api.key:${BREVO_API_KEY:}}")
+    private String brevoApiKey;
 
     @Value("${spring.mail.username:${MAIL_USERNAME:}}")
     private String mailUsername;
@@ -45,7 +57,7 @@ public class EmailService {
     }
 
     /**
-     * Resolves the sender email address for SMTP (Brevo).
+     * Resolves the sender email address for SMTP and Brevo API.
      * Defaults to the verified sender email in Brevo.
      */
     public String getSenderEmail() {
@@ -78,8 +90,10 @@ public class EmailService {
     }
 
     /**
-     * Generic email sender prioritizing Brevo SMTP (with HTML and plain text multipart),
-     * and falling back to Resend REST API if SMTP fails or is not available.
+     * Sends email using the best available method:
+     * 1. Brevo REST API (HTTPS port 443 - never blocked by cloud hosts like Render)
+     * 2. Brevo SMTP (ports 587, 2525, or 465)
+     * 3. Resend REST API (HTTPS fallback)
      */
     public void sendEmail(String to, String subject, String text, String html) {
         if (to == null || to.isBlank()) {
@@ -89,13 +103,25 @@ public class EmailService {
 
         String trimmedTo = to.trim();
 
-        // 1. Prioritize Brevo SMTP when mailSender and username are present
+        // 1. If Brevo REST API key is configured (starts with xkeysib-), use HTTPS (Port 443) - works on Render Free Tier!
+        String bKey = (brevoApiKey != null) ? brevoApiKey.trim() : "";
+        if (!bKey.isEmpty() && !bKey.equalsIgnoreCase("your_brevo_api_key")) {
+            try {
+                sendViaBrevoApi(trimmedTo, subject, text, html, bKey);
+                return;
+            } catch (Exception apiEx) {
+                log.error("Brevo REST API sending failed for recipient [{}]: {}. Trying SMTP fallback...",
+                        trimmedTo, apiEx.getMessage());
+            }
+        }
+
+        // 2. Try SMTP (Brevo / JavaMailSender)
         if (mailSender != null && mailUsername != null && !mailUsername.isBlank()) {
             try {
                 sendViaSmtp(trimmedTo, subject, text, html);
                 return;
             } catch (Exception smtpEx) {
-                log.error("SMTP sending failed for recipient [{}]: {}. Trying fallback if available...",
+                log.error("SMTP sending failed for recipient [{}]: {}. Trying Resend fallback if available...",
                         trimmedTo, smtpEx.getMessage());
 
                 // Fallback to Resend API if key is present
@@ -113,21 +139,68 @@ public class EmailService {
             }
         }
 
-        // 2. Fallback to Resend REST API if SMTP is not configured
+        // 3. Fallback to Resend REST API if SMTP is not configured
         String apiKey = (resendApiKey != null) ? resendApiKey.trim() : "";
         if (!apiKey.isEmpty() && !apiKey.equalsIgnoreCase("your_resend_api_key")) {
             sendViaResend(trimmedTo, subject, text, html, apiKey);
             return;
         }
 
-        String msg = "Email sending failed: Brevo SMTP is not configured and no valid Resend API key found. "
-                + "Please set MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD, and MAIL_FROM in your .env or properties.";
+        String msg = "Email sending failed: Neither Brevo API/SMTP nor Resend is configured. "
+                + "Please set BREVO_API_KEY, or MAIL_HOST/MAIL_USERNAME/MAIL_PASSWORD in your environment variables.";
         log.error(msg);
         throw new IllegalStateException(msg);
     }
 
     public void sendEmail(String to, String subject, String text) {
         sendEmail(to, subject, text, null);
+    }
+
+    private void sendViaBrevoApi(String to, String subject, String text, String html, String apiKey) {
+        String senderEmail = getSenderEmail();
+        log.info("Sending email via Brevo REST API (HTTPS port 443) from [{}] to [{}] with subject [{}]", senderEmail, to, subject);
+
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("sender", Map.of("name", "CDCM Healthcare System", "email", senderEmail));
+            payload.put("to", List.of(Map.of("email", to)));
+            payload.put("subject", subject);
+
+            if (html != null && !html.isBlank()) {
+                payload.put("htmlContent", html);
+            }
+            if (text != null && !text.isBlank()) {
+                payload.put("textContent", text);
+            }
+
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonBody = mapper.writeValueAsString(payload);
+
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .header("api-key", apiKey.trim())
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
+                    .timeout(Duration.ofSeconds(15))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("Successfully sent email to [{}] via Brevo REST API. Response: {}", to, response.body());
+            } else {
+                log.error("Brevo REST API error (HTTP {}): {}", response.statusCode(), response.body());
+                throw new RuntimeException("Brevo API error (" + response.statusCode() + "): " + response.body());
+            }
+        } catch (Exception e) {
+            log.error("Failed to send email to [{}] via Brevo REST API: {}", to, e.getMessage(), e);
+            throw new RuntimeException("Failed to send email via Brevo API: " + e.getMessage(), e);
+        }
     }
 
     private void sendViaSmtp(String to, String subject, String text, String html) {

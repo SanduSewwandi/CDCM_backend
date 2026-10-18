@@ -60,9 +60,9 @@ public class MailConfig {
         props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
 
         // Timeouts to prevent hanging requests
-        props.put("mail.smtp.connectiontimeout", "10000");
-        props.put("mail.smtp.timeout", "10000");
-        props.put("mail.smtp.writetimeout", "10000");
+        props.put("mail.smtp.connectiontimeout", "5000");
+        props.put("mail.smtp.timeout", "5000");
+        props.put("mail.smtp.writetimeout", "5000");
 
         // Enable debug in logs so you can inspect SMTP negotiation directly in Render logs
         props.put("mail.debug", "true");
