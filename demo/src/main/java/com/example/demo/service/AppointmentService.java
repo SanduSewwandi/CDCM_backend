@@ -18,9 +18,12 @@ import com.example.demo.model.Conversation;
 import com.example.demo.service.ChatService;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -325,9 +328,46 @@ public class AppointmentService {
      * details and hospital names, and sorts them.
      */
     public List<AppointmentResponseDTO> getAppointmentsByDoctor(String doctorId) {
-        List<Appointment> appointments = appointmentRepository.findByDoctorId(doctorId);
+        if (doctorId == null || doctorId.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
 
-        return appointments.stream().map(appt -> {
+        List<Appointment> appointments = appointmentRepository.findByDoctorId(doctorId);
+        if (appointments == null || appointments.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Appointment> validAppointments = appointments;
+
+        if (scheduleRepository != null) {
+            Set<String> scheduleIds = appointments.stream()
+                    .map(Appointment::getScheduleId)
+                    .filter(sId -> sId != null && !sId.trim().isEmpty())
+                    .collect(Collectors.toSet());
+
+            Set<String> validScheduleIds = new HashSet<>();
+            if (!scheduleIds.isEmpty()) {
+                Iterable<Schedule> existingSchedules = scheduleRepository.findAllById(scheduleIds);
+                if (existingSchedules != null) {
+                    for (Schedule schedule : existingSchedules) {
+                        if (schedule != null && schedule.getId() != null
+                                && doctorId.equals(schedule.getDoctorId())
+                                && !"CANCELLED".equalsIgnoreCase(schedule.getStatus())
+                                && !"REJECTED".equalsIgnoreCase(schedule.getStatus())) {
+                            validScheduleIds.add(schedule.getId());
+                        }
+                    }
+                }
+            }
+
+            validAppointments = appointments.stream()
+                    .filter(appt -> appt.getScheduleId() != null
+                            && validScheduleIds.contains(appt.getScheduleId())
+                            && !"CANCELLED".equalsIgnoreCase(appt.getStatus()))
+                    .collect(Collectors.toList());
+        }
+
+        return validAppointments.stream().map(appt -> {
                     AppointmentResponseDTO dto = new AppointmentResponseDTO();
                     dto.setId(appt.getId());
                     dto.setPatientId(appt.getPatientId());

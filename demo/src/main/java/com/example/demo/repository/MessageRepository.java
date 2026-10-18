@@ -11,4 +11,8 @@ public interface MessageRepository
     List<Message> findByConversationIdOrderBySentAtAsc(
             String conversationId
     );
+
+    List<Message> findByConversationIdInOrderBySentAtAsc(
+            List<String> conversationIds
+    );
 }
