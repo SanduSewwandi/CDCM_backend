@@ -14,4 +14,6 @@ public interface ConversationRepository
     List<Conversation> findByPatientId(String patientId);
 
     List<Conversation> findByDoctorId(String doctorId);
+
+    List<Conversation> findByPatientIdAndDoctorId(String patientId, String doctorId);
 }
