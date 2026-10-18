@@ -17,4 +17,6 @@ public interface AppointmentRepository extends MongoRepository<Appointment, Stri
     List<Appointment> findByHospitalId(String hospitalId);
 
     boolean existsByPatientIdAndDoctorIdAndScheduleId(String patientId, String doctorId, String scheduleId);
+
+    boolean existsByScheduleIdAndStatusIn(String scheduleId, List<String> statuses);
 }

@@ -12,6 +12,7 @@ public class Message {
     private String id;
 
     private String conversationId;
+    private String appointmentId;
 
     private String senderId;
     private String senderRole;
@@ -41,6 +42,14 @@ public class Message {
 
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
+    }
+
+    public String getAppointmentId() {
+        return appointmentId;
+    }
+
+    public void setAppointmentId(String appointmentId) {
+        this.appointmentId = appointmentId;
     }
 
     public String getSenderId() {

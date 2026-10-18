@@ -3,9 +3,18 @@ package com.example.demo.dto;
 public class SendMessageRequest {
 
     private String conversationId;
+    private String appointmentId;
     private String senderId;
     private String senderRole;
     private String content;
+
+    public String getAppointmentId() {
+        return appointmentId;
+    }
+
+    public void setAppointmentId(String appointmentId) {
+        this.appointmentId = appointmentId;
+    }
 
     public String getConversationId() {
         return conversationId;

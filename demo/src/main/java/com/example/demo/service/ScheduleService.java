@@ -206,8 +206,15 @@ public class ScheduleService {
                                         "COMPLETED"
                                 );
 
+                        // Count paid appointments (video)
+                        long paidCount =
+                                appointmentRepository.countByScheduleIdAndStatus(
+                                        schedule.getId(),
+                                        "PAID"
+                                );
+
                         // Total booked appointments
-                        long bookedCount = confirmedCount + completedCount;
+                        long bookedCount = confirmedCount + completedCount + paidCount;
 
                         schedule.setBookedPatientCount(bookedCount);
 
@@ -377,6 +384,16 @@ public class ScheduleService {
 
                                 throw new IllegalArgumentException(
                                                 "Cannot cancel an expired schedule.");
+                        }
+
+                        // =========================================================
+                        // 2.2. SCHEDULE WITH BOOKED PATIENTS CANNOT BE CANCELLED
+                        // =========================================================
+
+                        if (hasActiveBookings(schedule.getId())) {
+
+                                throw new IllegalArgumentException(
+                                                "Cannot cancel this schedule because patients have already booked appointments.");
                         }
 
                         // =========================================================
@@ -854,6 +871,16 @@ public class ScheduleService {
                                         "Error while cancelling schedule: "
                                                         + e.getMessage());
                 }
+        }
+
+        private boolean hasActiveBookings(String scheduleId) {
+                if (scheduleId == null || appointmentRepository == null) {
+                        return false;
+                }
+                return appointmentRepository.existsByScheduleIdAndStatusIn(
+                                scheduleId,
+                                List.of("CONFIRMED", "COMPLETED", "PAID", "PENDING", "confirmed", "completed", "paid", "pending")
+                );
         }
 
         private boolean isSchedulePast(String dateStr, String timeStr) {
