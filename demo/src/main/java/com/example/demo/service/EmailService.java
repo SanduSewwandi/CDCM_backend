@@ -1,10 +1,5 @@
 package com.example.demo.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.resend.Resend;
-import com.resend.core.exception.ResendException;
-import com.resend.services.emails.model.CreateEmailOptions;
-import com.resend.services.emails.model.CreateEmailResponse;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,15 +9,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class EmailService {
@@ -31,16 +18,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${brevo.api.key:${BREVO_API_KEY:}}")
-    private String brevoApiKey;
-
-    @Value("${spring.mail.username:${MAIL_USERNAME:}}")
-    private String mailUsername;
-
-    @Value("${spring.mail.password:${MAIL_PASSWORD:}}")
-    private String mailPassword;
-
-    @Value("${spring.mail.from:${MAIL_FROM:hiruireshasewwandi@gmail.com}}")
+    @Value("${spring.mail.from:${MAIL_FROM:hirunireshasewwandi@gmail.com}}")
     private String mailFrom;
 
     @Value("${spring.mail.host:${MAIL_HOST:smtp-relay.brevo.com}}")
@@ -49,73 +27,25 @@ public class EmailService {
     @Value("${spring.mail.port:${MAIL_PORT:587}}")
     private int mailPort;
 
-    @Value("${resend.api.key:${RESEND_API_KEY:}}")
-    private String resendApiKey;
-
-    @Value("${resend.from.email:${RESEND_FROM_EMAIL:}}")
-    private String resendFromEmail;
-
     public EmailService(@Autowired(required = false) JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
     /**
-     * Resolves the Brevo API key.
-     * Automatically detects whether it was passed via BREVO_API_KEY or entered as MAIL_PASSWORD.
-     * (Brevo API keys start with 'xkeysib-').
-     */
-    private String resolveBrevoApiKey() {
-        if (brevoApiKey != null && brevoApiKey.trim().startsWith("xkeysib-")) {
-            return brevoApiKey.trim();
-        }
-        if (mailPassword != null && mailPassword.trim().startsWith("xkeysib-")) {
-            log.info("Detected Brevo REST API key in MAIL_PASSWORD. Using HTTPS REST API (Port 443).");
-            return mailPassword.trim();
-        }
-        if (brevoApiKey != null && !brevoApiKey.isBlank() && !brevoApiKey.equalsIgnoreCase("your_brevo_api_key")) {
-            return brevoApiKey.trim();
-        }
-        return "";
-    }
-
-    /**
-     * Resolves the sender email address for SMTP and Brevo API.
-     * Defaults to the verified sender email in Brevo.
+     * Resolves the configured sender email address.
+     * Configurable through MAIL_FROM (must be a verified sender in Brevo).
      */
     public String getSenderEmail() {
         if (mailFrom != null && !mailFrom.isBlank()) {
             return mailFrom.trim();
         }
-        if (mailUsername != null && !mailUsername.isBlank() && !mailUsername.contains("@smtp-brevo.com")) {
-            return mailUsername.trim();
-        }
-        return "hiruireshasewwandi@gmail.com";
+        return "hirunireshasewwandi@gmail.com";
     }
 
     /**
-     * Resolves the sender email address for Resend.
-     * Prevents using unverified public domains on Resend.
-     */
-    private String getResendSenderEmail() {
-        String from = (resendFromEmail != null && !resendFromEmail.isBlank())
-                ? resendFromEmail.trim()
-                : "";
-
-        if (from.isEmpty() || from.toLowerCase().contains("@gmail.com")
-                || from.toLowerCase().contains("@yahoo.com")
-                || from.toLowerCase().contains("@outlook.com")
-                || from.toLowerCase().contains("@hotmail.com")) {
-            return "CDCM System <onboarding@resend.dev>";
-        }
-
-        return from;
-    }
-
-    /**
-     * Sends email using the best available method:
-     * 1. Brevo REST API (HTTPS port 443 - never blocked by cloud hosts like Render)
-     * 2. Brevo SMTP (ports 587, 2525, or 465)
-     * 3. Resend REST API (HTTPS fallback)
+     * Sends email exclusively using Brevo SMTP.
+     * Every sending attempt must either succeed or throw a meaningful exception.
+     * Never silently swallows errors or switches providers.
      */
     public void sendEmail(String to, String subject, String text, String html) {
         if (to == null || to.isBlank()) {
@@ -123,107 +53,14 @@ public class EmailService {
             throw new IllegalArgumentException("Recipient email address must not be empty.");
         }
 
+        if (mailSender == null) {
+            log.error("Cannot send email: JavaMailSender bean is not configured.");
+            throw new IllegalStateException("Email sending failed: JavaMailSender is not configured.");
+        }
+
         String trimmedTo = to.trim();
+        String sender = getSenderEmail();
 
-        // 1. If Brevo REST API key is configured (from BREVO_API_KEY or MAIL_PASSWORD), use HTTPS (Port 443)
-        String bKey = resolveBrevoApiKey();
-        if (!bKey.isEmpty()) {
-            try {
-                sendViaBrevoApi(trimmedTo, subject, text, html, bKey);
-                return;
-            } catch (Exception apiEx) {
-                log.error("Brevo REST API sending failed for recipient [{}]: {}. Trying SMTP fallback...",
-                        trimmedTo, apiEx.getMessage());
-            }
-        // 2. Try SMTP (Brevo / JavaMailSender)
-        if (mailSender != null && mailUsername != null && !mailUsername.isBlank()) {
-            try {
-                sendViaSmtp(trimmedTo, subject, text, html);
-                return;
-            } catch (Exception smtpEx) {
-                log.error("SMTP sending failed for recipient [{}]: {}. Trying Resend fallback if available...",
-                        trimmedTo, smtpEx.getMessage());
-
-                // Fallback to Resend API if key is present
-                String apiKey = (resendApiKey != null) ? resendApiKey.trim() : "";
-                if (!apiKey.isEmpty() && !apiKey.equalsIgnoreCase("your_resend_api_key")) {
-                    try {
-                        log.info("Attempting fallback via Resend API for [{}]", trimmedTo);
-                        sendViaResend(trimmedTo, subject, text, html, apiKey);
-                        return;
-                    } catch (Exception resendEx) {
-                        log.error("Resend fallback also failed for [{}]: {}", trimmedTo, resendEx.getMessage());
-                    }
-                }
-                throw new RuntimeException("Email sending failed via SMTP: " + smtpEx.getMessage(), smtpEx);
-            }
-        }
-
-        // 3. Fallback to Resend REST API if SMTP is not configured
-        String apiKey = (resendApiKey != null) ? resendApiKey.trim() : "";
-        if (!apiKey.isEmpty() && !apiKey.equalsIgnoreCase("your_resend_api_key")) {
-            sendViaResend(trimmedTo, subject, text, html, apiKey);
-            return;
-        }
-
-        String msg = "Email sending failed: Neither Brevo API/SMTP nor Resend is configured. "
-                + "Please set BREVO_API_KEY, or MAIL_HOST/MAIL_USERNAME/MAIL_PASSWORD in your environment variables.";
-        log.error(msg);
-        throw new IllegalStateException(msg);
-    }
-
-    public void sendEmail(String to, String subject, String text) {
-        sendEmail(to, subject, text, null);
-    }
-
-    private void sendViaBrevoApi(String to, String subject, String text, String html, String apiKey) {
-        String senderEmail = getSenderEmail();
-        log.info("Sending email via Brevo REST API (HTTPS port 443) from [{}] to [{}] with subject [{}]", senderEmail, to, subject);
-
-        try {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("sender", Map.of("name", "CDCM Healthcare System", "email", senderEmail));
-            payload.put("to", List.of(Map.of("email", to)));
-            payload.put("subject", subject);
-
-            if (html != null && !html.isBlank()) {
-                payload.put("htmlContent", html);
-            }
-            if (text != null && !text.isBlank()) {
-                payload.put("textContent", text);
-            }
-
-            ObjectMapper mapper = new ObjectMapper();
-            String jsonBody = mapper.writeValueAsString(payload);
-
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
-                    .build();
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
-                    .header("api-key", apiKey.trim())
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
-                    .timeout(Duration.ofSeconds(15))
-                    .build();
-
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                log.info("Successfully sent email to [{}] via Brevo REST API. Response: {}", to, response.body());
-            } else {
-                log.error("Brevo REST API error (HTTP {}): {}", response.statusCode(), response.body());
-                throw new RuntimeException("Brevo API error (" + response.statusCode() + "): " + response.body());
-            }
-        } catch (Exception e) {
-            log.error("Failed to send email to [{}] via Brevo REST API: {}", to, e.getMessage(), e);
-            throw new RuntimeException("Failed to send email via Brevo API: " + e.getMessage(), e);
-        }
-    }
-
-    private void sendViaSmtp(String to, String subject, String text, String html) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(
@@ -231,14 +68,13 @@ public class EmailService {
                     MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
                     StandardCharsets.UTF_8.name());
 
-            String sender = getSenderEmail();
             if (sender.contains("<") && sender.contains(">")) {
                 helper.setFrom(sender);
             } else {
                 helper.setFrom(sender, "CDCM Healthcare System");
             }
 
-            helper.setTo(to);
+            helper.setTo(trimmedTo);
             helper.setSubject(subject);
 
             if (html != null && !html.isBlank()) {
@@ -251,47 +87,25 @@ public class EmailService {
                 helper.setText(text != null ? text : "", false);
             }
 
-            log.info("Sending email via Brevo SMTP ({}:{}) from [{}] to [{}] with subject [{}]",
-                    mailHost, mailPort, sender, to, subject);
+            log.info("Sending email via Brevo SMTP ({}:{}) to recipient [{}] with subject [{}]",
+                    mailHost, mailPort, trimmedTo, subject);
+
             mailSender.send(mimeMessage);
-            log.info("Successfully sent email to [{}] via Brevo SMTP", to);
+
+            // Log acceptance by SMTP server. Note: SMTP acceptance confirms delivery to relay,
+            // but final inbox placement depends on recipient mail provider filters.
+            log.info("Brevo SMTP successfully accepted email for recipient [{}] with subject [{}]",
+                    trimmedTo, subject);
+
         } catch (Exception e) {
-            log.error("Failed to send email to [{}] via SMTP: {}", to, e.getMessage(), e);
-            throw new RuntimeException("Failed to send email via SMTP: " + e.getMessage(), e);
+            log.error("Failed to send email via Brevo SMTP to recipient [{}] with subject [{}]: {}",
+                    trimmedTo, subject, e.getMessage());
+            throw new RuntimeException("Failed to send email via Brevo SMTP to " + trimmedTo + ": " + e.getMessage(), e);
         }
     }
 
-    private void sendViaResend(String to, String subject, String text, String html, String apiKey) {
-        String sender = getResendSenderEmail();
-        log.info("Sending email via Resend API (HTTPS REST) from [{}] to [{}] with subject [{}]", sender, to, subject);
-
-        try {
-            Resend resend = new Resend(apiKey);
-            CreateEmailOptions.Builder optionsBuilder = CreateEmailOptions.builder()
-                    .from(sender)
-                    .to(to)
-                    .subject(subject);
-
-            if (text != null && !text.isBlank()) {
-                optionsBuilder.text(text);
-            }
-            if (html != null && !html.isBlank()) {
-                optionsBuilder.html(html);
-            }
-
-            CreateEmailResponse response = resend.emails().send(optionsBuilder.build());
-            String emailId = (response != null) ? response.getId() : "unknown";
-            log.info("Successfully sent email to [{}] via Resend API. Resend Email ID: [{}]", to, emailId);
-        } catch (ResendException e) {
-            log.error(
-                    "Resend API error sending email to [{}]: statusCode={}, errorName={}, responseBody={}, message={}",
-                    to, e.getStatusCode(), e.getErrorName(), e.getResponseBody(), e.getMessage(), e);
-            throw new RuntimeException("Resend API error: " + e.getMessage()
-                    + (e.getResponseBody() != null ? " (" + e.getResponseBody() + ")" : ""), e);
-        } catch (Exception e) {
-            log.error("Failed to send email to [{}] via Resend API: {}", to, e.getMessage(), e);
-            throw new RuntimeException("Failed to send email via Resend: " + e.getMessage(), e);
-        }
+    public void sendEmail(String to, String subject, String text) {
+        sendEmail(to, subject, text, null);
     }
 
     private String escapeHtml(String input) {
@@ -323,7 +137,7 @@ public class EmailService {
 
             sendEmail(to, subject, text, html);
         } catch (Exception e) {
-            log.error("Failed to send OTP verification email to [{}]: {}", to, e.getMessage(), e);
+            log.error("Failed to send OTP verification email to [{}]: {}", to, e.getMessage());
             throw new RuntimeException("Failed to send verification email: " + e.getMessage(), e);
         }
     }
@@ -352,7 +166,7 @@ public class EmailService {
 
             sendEmail(to, subject, text, html);
         } catch (Exception e) {
-            log.error("Failed to send password reset email to [{}]: {}", to, e.getMessage(), e);
+            log.error("Failed to send password reset email to [{}]: {}", to, e.getMessage());
             throw new RuntimeException("Failed to send password reset email: " + e.getMessage(), e);
         }
     }
@@ -390,7 +204,7 @@ public class EmailService {
 
             sendEmail(to, subject, text, html);
         } catch (Exception e) {
-            log.error("Failed to send hospital welcome email to [{}]: {}", to, e.getMessage(), e);
+            log.error("Failed to send hospital welcome email to [{}]: {}", to, e.getMessage());
             throw new RuntimeException("Failed to send welcome email: " + e.getMessage(), e);
         }
     }
@@ -480,7 +294,8 @@ public class EmailService {
 
             sendEmail(to, subject, text, html);
         } catch (Exception e) {
-            log.error("Failed to send appointment cancellation email to [{}]: {}", to, e.getMessage(), e);
+            log.error("Failed to send appointment cancellation email to [{}]: {}", to, e.getMessage());
+            throw new RuntimeException("Failed to send appointment cancellation email: " + e.getMessage(), e);
         }
     }
 
@@ -502,18 +317,16 @@ public class EmailService {
             String text = greeting +
                     "Your payment for appointment #" + apptNumStr + " has been successfully confirmed.\n\n" +
                     "To safeguard your privacy, your medical history is confidential and restricted. If you wish to allow "
-                    +
-                    doctorSnippet
+                    + doctorSnippet
                     + " to view your medical history during your consultation, please share the following 6-digit access code:\n\n"
-                    +
-                    "Access Code: " + otp + "\n\n" +
-                    "IMPORTANT PRIVACY NOTICE:\n" +
-                    "- Provide this code ONLY to your doctor during your consultation.\n" +
-                    "- Once verified by your doctor, medical history access will remain active for exactly 1 hour.\n" +
-                    "- After 1 hour, access will automatically expire.\n" +
-                    "- If you do not wish to share your medical history, simply do not provide this code.\n\n" +
-                    "Thank you,\n" +
-                    "CDCM System";
+                    + "Access Code: " + otp + "\n\n"
+                    + "IMPORTANT PRIVACY NOTICE:\n"
+                    + "- Provide this code ONLY to your doctor during your consultation.\n"
+                    + "- Once verified by your doctor, medical history access will remain active for exactly 1 hour.\n"
+                    + "- After 1 hour, access will automatically expire.\n"
+                    + "- If you do not wish to share your medical history, simply do not provide this code.\n\n"
+                    + "Thank you,\n"
+                    + "CDCM System";
 
             String html = "<div style=\"font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;\">"
                     + "<h2 style=\"color: #0f172a; margin-top: 0;\">Medical History Access Code</h2>"
@@ -543,7 +356,8 @@ public class EmailService {
 
             sendEmail(to, subject, text, html);
         } catch (Exception e) {
-            log.error("Failed to send medical history access OTP to [{}]: {}", to, e.getMessage(), e);
+            log.error("Failed to send medical history access OTP to [{}]: {}", to, e.getMessage());
+            throw new RuntimeException("Failed to send medical history access code: " + e.getMessage(), e);
         }
     }
 }
