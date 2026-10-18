@@ -37,6 +37,9 @@ public class EmailService {
     @Value("${spring.mail.username:${MAIL_USERNAME:}}")
     private String mailUsername;
 
+    @Value("${spring.mail.password:${MAIL_PASSWORD:}}")
+    private String mailPassword;
+
     @Value("${spring.mail.from:${MAIL_FROM:hiruireshasewwandi@gmail.com}}")
     private String mailFrom;
 
@@ -54,6 +57,25 @@ public class EmailService {
 
     public EmailService(@Autowired(required = false) JavaMailSender mailSender) {
         this.mailSender = mailSender;
+    }
+
+    /**
+     * Resolves the Brevo API key.
+     * Automatically detects whether it was passed via BREVO_API_KEY or entered as MAIL_PASSWORD.
+     * (Brevo API keys start with 'xkeysib-').
+     */
+    private String resolveBrevoApiKey() {
+        if (brevoApiKey != null && brevoApiKey.trim().startsWith("xkeysib-")) {
+            return brevoApiKey.trim();
+        }
+        if (mailPassword != null && mailPassword.trim().startsWith("xkeysib-")) {
+            log.info("Detected Brevo REST API key in MAIL_PASSWORD. Using HTTPS REST API (Port 443).");
+            return mailPassword.trim();
+        }
+        if (brevoApiKey != null && !brevoApiKey.isBlank() && !brevoApiKey.equalsIgnoreCase("your_brevo_api_key")) {
+            return brevoApiKey.trim();
+        }
+        return "";
     }
 
     /**
@@ -103,9 +125,9 @@ public class EmailService {
 
         String trimmedTo = to.trim();
 
-        // 1. If Brevo REST API key is configured (starts with xkeysib-), use HTTPS (Port 443) - works on Render Free Tier!
-        String bKey = (brevoApiKey != null) ? brevoApiKey.trim() : "";
-        if (!bKey.isEmpty() && !bKey.equalsIgnoreCase("your_brevo_api_key")) {
+        // 1. If Brevo REST API key is configured (from BREVO_API_KEY or MAIL_PASSWORD), use HTTPS (Port 443)
+        String bKey = resolveBrevoApiKey();
+        if (!bKey.isEmpty()) {
             try {
                 sendViaBrevoApi(trimmedTo, subject, text, html, bKey);
                 return;
@@ -113,8 +135,6 @@ public class EmailService {
                 log.error("Brevo REST API sending failed for recipient [{}]: {}. Trying SMTP fallback...",
                         trimmedTo, apiEx.getMessage());
             }
-        }
-
         // 2. Try SMTP (Brevo / JavaMailSender)
         if (mailSender != null && mailUsername != null && !mailUsername.isBlank()) {
             try {
