@@ -38,6 +38,9 @@ public class Hospital {
     // Notification preferences
     private NotificationPreference notificationPreference = new NotificationPreference();
 
+    // Cancellation refund policy
+    private CancellationRefundPolicy cancellationRefundPolicy = new CancellationRefundPolicy();
+
     public Hospital() {
     }
 
@@ -210,5 +213,16 @@ public class Hospital {
     public void setNotificationPreference(
             NotificationPreference notificationPreference) {
         this.notificationPreference = notificationPreference;
+    }
+
+    public CancellationRefundPolicy getCancellationRefundPolicy() {
+        if (cancellationRefundPolicy == null) {
+            cancellationRefundPolicy = new CancellationRefundPolicy();
+        }
+        return cancellationRefundPolicy;
+    }
+
+    public void setCancellationRefundPolicy(CancellationRefundPolicy cancellationRefundPolicy) {
+        this.cancellationRefundPolicy = cancellationRefundPolicy;
     }
 }

@@ -23,4 +23,12 @@ public class AppointmentResponseDTO {
     private boolean medicalHistoryAccessActive;
     private java.time.LocalDateTime medicalHistoryAccessExpiresAt;
 
+    // Refund audit fields
+    private double amount;
+    private Double refundPercentage;
+    private Double refundAmount;
+    private String refundStatus;
+    private String cancelledBy;
+    private String refundReason;
+    private java.time.LocalDateTime refundedAt;
 }

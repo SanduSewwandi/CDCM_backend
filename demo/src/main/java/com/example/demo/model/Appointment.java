@@ -30,6 +30,14 @@ public class Appointment {
     private boolean isPaid = false;
     private LocalDateTime paidAt;
 
+    // --- REFUND AUDIT FIELDS ---
+    private Double refundPercentage;
+    private Double refundAmount;
+    private String refundStatus; // e.g. "REFUNDED"
+    private String cancelledBy;  // "PATIENT", "DOCTOR", "HOSPITAL", "SYSTEM"
+    private String refundReason;
+    private LocalDateTime refundedAt;
+
     // --- MEDICAL HISTORY OTP ACCESS FIELDS ---
     private String medicalHistoryOtpHash;
     private LocalDateTime medicalHistoryOtpExpiresAt;
@@ -160,5 +168,55 @@ public class Appointment {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    // --- REFUND AUDIT GETTERS AND SETTERS ---
+
+    public Double getRefundPercentage() {
+        return refundPercentage;
+    }
+
+    public void setRefundPercentage(Double refundPercentage) {
+        this.refundPercentage = refundPercentage;
+    }
+
+    public Double getRefundAmount() {
+        return refundAmount;
+    }
+
+    public void setRefundAmount(Double refundAmount) {
+        this.refundAmount = refundAmount;
+    }
+
+    public String getRefundStatus() {
+        return refundStatus;
+    }
+
+    public void setRefundStatus(String refundStatus) {
+        this.refundStatus = refundStatus;
+    }
+
+    public String getCancelledBy() {
+        return cancelledBy;
+    }
+
+    public void setCancelledBy(String cancelledBy) {
+        this.cancelledBy = cancelledBy;
+    }
+
+    public String getRefundReason() {
+        return refundReason;
+    }
+
+    public void setRefundReason(String refundReason) {
+        this.refundReason = refundReason;
+    }
+
+    public LocalDateTime getRefundedAt() {
+        return refundedAt;
+    }
+
+    public void setRefundedAt(LocalDateTime refundedAt) {
+        this.refundedAt = refundedAt;
     }
 }
