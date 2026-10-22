@@ -45,3 +45,9 @@ target/
 # =========================
 .DS_Store
 Thumbs.db
+
+# =========================
+# Local Live Tests (with credentials)
+# =========================
+*LiveTest.java
+BrevoEmailLiveTest.java
