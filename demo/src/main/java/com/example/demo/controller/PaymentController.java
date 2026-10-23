@@ -104,6 +104,12 @@ public class PaymentController {
             response.put("message", "Payment confirmed successfully");
             response.put("appointment", updated);
             return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+            logger.warning("Payment confirmation rejected: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(400).body(errorResponse);
         } catch (Exception e) {
             logger.severe("Error confirming payment success: " + e.getMessage());
             Map<String, Object> errorResponse = new HashMap<>();

@@ -69,6 +69,9 @@ public class PaymentService {
 
 
     public void processNotification(PaymentNotificationDTO dto) {
+        if (dto == null) {
+            return;
+        }
         if (verifyMd5Sig(dto)) { // Ensure this verification passes
             if ("2".equals(dto.getStatus_code())) { // Status 2 = Success
                 Double amount = null;
@@ -77,9 +80,25 @@ public class PaymentService {
                         amount = Double.parseDouble(dto.getPayhere_amount());
                     }
                 } catch (Exception ignored) {}
-                confirmPaymentSuccess(dto.getOrder_id(), dto.getPayment_id(), amount);
+                confirmPaymentSuccess(dto.getOrder_id(), dto.getPayment_id(), amount, true);
+            } else if ("-1".equals(dto.getStatus_code()) || "-2".equals(dto.getStatus_code())) {
+                // Payment cancelled (-1) or failed (-2) via PayHere IPN
+                cancelPendingPayment(dto.getOrder_id());
             }
+        } else {
+            System.err.println("PayHere IPN signature verification failed for order: " + dto.getOrder_id());
         }
+    }
+
+    public void cancelPendingPayment(String orderId) {
+        if (orderId == null || orderId.trim().isEmpty()) return;
+        appointmentRepo.findById(orderId).ifPresent(appointment -> {
+            if (!appointment.isPaid() && !"PAID".equalsIgnoreCase(appointment.getPaymentStatus()) && !"CONFIRMED".equalsIgnoreCase(appointment.getStatus())) {
+                appointment.setStatus("CANCELLED");
+                appointment.setPaymentStatus("FAILED");
+                appointmentRepo.save(appointment);
+            }
+        });
     }
 
     private boolean verifyMd5Sig(PaymentNotificationDTO dto) {
@@ -96,14 +115,39 @@ public class PaymentService {
     }
 
     public Appointment confirmPaymentSuccess(String orderId, String payhereId, Double amount) {
+        return confirmPaymentSuccess(orderId, payhereId, amount, false);
+    }
+
+    public Appointment confirmPaymentSuccess(String orderId, String payhereId, Double amount, boolean isVerifiedIpn) {
         LocalDateTime now = LocalDateTime.now();
 
         Appointment appointment = appointmentRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Appointment not found with id: " + orderId));
 
         // Idempotency check: if already confirmed/paid, return directly without creating duplicate notifications
-        if (appointment.isPaid() && "PAID".equalsIgnoreCase(appointment.getPaymentStatus()) && "CONFIRMED".equalsIgnoreCase(appointment.getStatus())) {
+        if (appointment.isPaid() && "PAID".equalsIgnoreCase(appointment.getPaymentStatus())
+                && ("CONFIRMED".equalsIgnoreCase(appointment.getStatus()) || "COMPLETED".equalsIgnoreCase(appointment.getStatus()))) {
             return appointment;
+        }
+
+        // Do not confirm an appointment when payment fails or was cancelled, unless verified by PayHere IPN
+        if (!isVerifiedIpn && ("CANCELLED".equalsIgnoreCase(appointment.getStatus()) || "FAILED".equalsIgnoreCase(appointment.getPaymentStatus()))) {
+            throw new IllegalStateException("Cannot confirm appointment that was cancelled or payment failed.");
+        }
+
+        // Prevent double booking clash on confirmed appointment numbers on the same schedule
+        if (appointment.getScheduleId() != null && appointment.getAppointmentNumber() != null) {
+            List<Appointment> scheduleAppts = appointmentRepo.findByScheduleId(appointment.getScheduleId());
+            if (scheduleAppts != null) {
+                boolean clash = scheduleAppts.stream().anyMatch(other ->
+                        other.getId() != null && !other.getId().equals(appointment.getId())
+                        && appointment.getAppointmentNumber().equalsIgnoreCase(other.getAppointmentNumber())
+                        && (other.isPaid() || "PAID".equalsIgnoreCase(other.getPaymentStatus()) || "CONFIRMED".equalsIgnoreCase(other.getStatus()))
+                );
+                if (clash) {
+                    throw new IllegalStateException("Appointment number " + appointment.getAppointmentNumber() + " is already confirmed for another booking on this schedule.");
+                }
+            }
         }
 
         appointment.setPaymentStatus("PAID");

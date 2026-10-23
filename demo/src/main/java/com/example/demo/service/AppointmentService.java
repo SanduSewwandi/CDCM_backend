@@ -92,6 +92,25 @@ public class AppointmentService {
         int chosenNumber = Integer.parseInt(appointment.getAppointmentNumber());
         String formattedApptNumber = String.format("APT-%03d", chosenNumber);
 
+        // Check if the appointment number is already booked and confirmed on this schedule
+        if (appointment.getScheduleId() != null && appointmentRepository != null) {
+            List<Appointment> scheduleAppointments = appointmentRepository.findByScheduleId(appointment.getScheduleId());
+            if (scheduleAppointments != null) {
+                for (Appointment existing : scheduleAppointments) {
+                    if (formattedApptNumber.equalsIgnoreCase(existing.getAppointmentNumber())) {
+                        if (existing.isPaid() || "CONFIRMED".equalsIgnoreCase(existing.getStatus()) || "PAID".equalsIgnoreCase(existing.getPaymentStatus())) {
+                            throw new IllegalArgumentException("Appointment number " + formattedApptNumber + " is already booked for this schedule.");
+                        } else if (appointment.getId() == null || !appointment.getId().equals(existing.getId())) {
+                            // Abandoned or unconfirmed attempt for this number; clean it up so it does not permanently block the slot
+                            try {
+                                appointmentRepository.delete(existing);
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }
+        }
+
         appointment.setAppointmentNumber(formattedApptNumber);
         appointment.setStatus("PENDING");
         appointment.setPaymentStatus("PENDING");
@@ -147,80 +166,35 @@ public class AppointmentService {
                 savedAppointment.getDoctorId()
         );
 
-        // Send notifications across the system (Patient, Doctor, Hospital)
-        createAppointmentNotification(savedAppointment);
+        // Note: Booking confirmation notifications are sent to Patient, Doctor, and Hospital
+        // ONLY after successful payment confirmation in PaymentService.confirmPaymentSuccess
 
         return savedAppointment;
     }
 
-    private void createAppointmentNotification(Appointment appointment) {
-        try {
-            LocalDateTime now = LocalDateTime.now();
-            String doctorName = "Doctor";
-            if (appointment.getDoctorId() != null && doctorRepository != null) {
-                Optional<Doctor> doctorOpt = doctorRepository.findById(appointment.getDoctorId());
-                if (doctorOpt.isPresent()) {
-                    Doctor doc = doctorOpt.get();
-                    String title = (doc.getTitle() != null && !doc.getTitle().isEmpty()) ? doc.getTitle() : "Dr.";
-                    String firstName = doc.getFirstName() != null ? doc.getFirstName() : "";
-                    String lastName = doc.getLastName() != null ? doc.getLastName() : "";
-                    String fullName = (title + " " + firstName + " " + lastName).trim();
-                    if (!fullName.isEmpty()) {
-                        doctorName = fullName;
-                    }
-                }
-            }
-
-            String dateStr = appointment.getDate() != null ? appointment.getDate() : "";
-            String timeStr = appointment.getTime() != null ? appointment.getTime() : "";
-            String timeSuffix = timeStr.isEmpty() ? "" : " at " + timeStr;
-            String apptNum = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : "N/A";
-
-            // Note: Patient notification is sent only after successful payment confirmation in PaymentService
-
-            // 1. Notify Doctor
-            if (appointment.getDoctorId() != null && notificationRepository != null) {
-                Notification docNote = new Notification();
-                docNote.setUserId(appointment.getDoctorId());
-                docNote.setDoctorId(appointment.getDoctorId());
-                docNote.setDoctorName(doctorName);
-                docNote.setScheduleId(appointment.getScheduleId());
-                docNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
-                docNote.setDate(appointment.getDate());
-                docNote.setTime(appointment.getTime());
-                docNote.setHospitalId(appointment.getHospitalId());
-                docNote.setTitle("New Appointment Booking");
-                docNote.setMessage("A patient has booked appointment (" + apptNum + ") with you for " + dateStr + timeSuffix + ".");
-                docNote.setRead(false);
-                docNote.setCreatedAt(now);
-                notificationRepository.save(docNote);
-            }
-
-            // 3. Notify Hospital
-            if (appointment.getHospitalId() != null && notificationRepository != null) {
-                Notification hospNote = new Notification();
-                hospNote.setUserId(appointment.getHospitalId());
-                hospNote.setHospitalId(appointment.getHospitalId());
-                hospNote.setDoctorId(appointment.getDoctorId());
-                hospNote.setDoctorName(doctorName);
-                hospNote.setScheduleId(appointment.getScheduleId());
-                hospNote.setScheduleType(appointment.getConsultationType() != null ? appointment.getConsultationType() : "PHYSICAL");
-                hospNote.setDate(appointment.getDate());
-                hospNote.setTime(appointment.getTime());
-                hospNote.setTitle("New Appointment Booking");
-                hospNote.setMessage("Appointment (" + apptNum + ") was booked for " + doctorName + " on " + dateStr + timeSuffix + ".");
-                hospNote.setRead(false);
-                hospNote.setCreatedAt(now);
-                notificationRepository.save(hospNote);
-            }
-
-        } catch (Exception e) {
-            System.err.println("Failed to create appointment notifications: " + e.getMessage());
-        }
-    }
-
     public List<Appointment> getAppointmentsForPatient(String patientId) {
-        return appointmentRepository.findByPatientId(patientId);
+        List<Appointment> all = appointmentRepository.findByPatientId(patientId);
+        if (all == null) return List.of();
+
+        return all.stream()
+                .filter(appt -> {
+                    // Must not be pending
+                    if ("PENDING".equalsIgnoreCase(appt.getStatus()) || "PENDING".equalsIgnoreCase(appt.getPaymentStatus())) {
+                        return false;
+                    }
+                    if ("FAILED".equalsIgnoreCase(appt.getPaymentStatus())) {
+                        return false;
+                    }
+                    boolean isPaid = appt.isPaid() || "PAID".equalsIgnoreCase(appt.getPaymentStatus());
+                    if (!isPaid) {
+                        return false;
+                    }
+                    return "CONFIRMED".equalsIgnoreCase(appt.getStatus())
+                            || "COMPLETED".equalsIgnoreCase(appt.getStatus())
+                            || "PAID".equalsIgnoreCase(appt.getStatus())
+                            || "CANCELLED".equalsIgnoreCase(appt.getStatus());
+                })
+                .collect(Collectors.toList());
     }
 
     public List<Appointment> getAppointmentsBySchedule(String scheduleId) {
