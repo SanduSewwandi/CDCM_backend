@@ -56,7 +56,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/schedules/**").permitAll()
                         .requestMatchers("/api/notifications/**").permitAll()
                         .requestMatchers("/api/appointments/*/cancel-preview", "/api/appointments/*/cancel", "/api/appointments/*/bank-details").hasAuthority("PATIENT")
-                        .requestMatchers("/api/appointments/*/hospital-cancel").hasAuthority("HOSPITAL")
+                        .requestMatchers("/api/appointments/*/hospital-cancel", "/api/appointments/*/confirm-refund", "/api/appointments/hospital/*/pending-refunds").hasAuthority("HOSPITAL")
                         .requestMatchers("/api/hospitals/me/refund-policy").hasAuthority("HOSPITAL")
                         .requestMatchers("/api/appointments/**").permitAll()
                         .requestMatchers("/api/feedback/**").permitAll()

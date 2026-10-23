@@ -1025,7 +1025,11 @@ public class AppointmentService {
                 .filter(a -> "CANCELLED".equalsIgnoreCase(a.getStatus()) &&
                         ("AWAITING_BANK_DETAILS".equalsIgnoreCase(a.getRefundStatus()) ||
                          "AWAITING_PROCESSING".equalsIgnoreCase(a.getRefundStatus())))
-                .map(this::mapToResponseDTO)
+                .map(a -> {
+                    AppointmentResponseDTO dto = this.mapToResponseDTO(a);
+                    dto.setBankAccountNumber(a.getBankAccountNumber());
+                    return dto;
+                })
                 .sorted(Comparator.comparing(AppointmentResponseDTO::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(AppointmentResponseDTO::getAppointmentNumber, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
@@ -1062,6 +1066,15 @@ public class AppointmentService {
 
         if (appt.getRefundAmount() == null || appt.getRefundAmount() <= 0) {
             throw new IllegalArgumentException("No refund is due for this appointment.");
+        }
+
+        if (!appt.isPaid() || "PENDING".equalsIgnoreCase(appt.getPaymentStatus()) || "FAILED".equalsIgnoreCase(appt.getPaymentStatus())) {
+            throw new IllegalArgumentException("Cannot complete refund for an unpaid appointment.");
+        }
+
+        if (appt.getBankAccountNumber() == null || appt.getBankAccountNumber().trim().isEmpty()
+                || "AWAITING_BANK_DETAILS".equalsIgnoreCase(appt.getRefundStatus())) {
+            throw new IllegalStateException("Patient has not submitted bank details yet.");
         }
 
         LocalDateTime now = LocalDateTime.now();

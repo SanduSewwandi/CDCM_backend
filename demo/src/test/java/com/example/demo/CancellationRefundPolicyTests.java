@@ -1,6 +1,7 @@
 package com.example.demo;
 
 import com.example.demo.dto.RefundPreviewDTO;
+import com.example.demo.dto.AppointmentResponseDTO;
 import com.example.demo.model.Appointment;
 import com.example.demo.model.CancellationRefundPolicy;
 import com.example.demo.model.Doctor;
@@ -933,6 +934,9 @@ class CancellationRefundPolicyTests {
         appt.setId("appt1");
         appt.setHospitalId("hosp1");
         appt.setStatus("CANCELLED");
+        appt.setPaid(true);
+        appt.setPaymentStatus("PAID");
+        appt.setBankAccountNumber("1234567890");
         appt.setRefundStatus("AWAITING_PROCESSING");
         appt.setRefundAmount(3000.0);
 
@@ -1470,4 +1474,278 @@ class CancellationRefundPolicyTests {
         assertEquals("hosp1", booked.getHospitalId());
         verify(appointmentRepository, times(1)).save(any(Appointment.class));
     }
+
+    @Test
+    void test46_getPendingRefundsForHospital_success_includesBankAccountNumber() {
+        Hospital hospital = new Hospital();
+        hospital.setId("hospAlpha");
+        hospital.setName("Alpha Hospital");
+        hospital.setEmail("alpha@hospital.com");
+
+        Appointment appt1 = new Appointment();
+        appt1.setId("appt1");
+        appt1.setHospitalId("hospAlpha");
+        appt1.setAppointmentNumber("APT-101");
+        appt1.setStatus("CANCELLED");
+        appt1.setRefundStatus("AWAITING_PROCESSING");
+        appt1.setAmount(4000.0);
+        appt1.setRefundPercentage(80.0);
+        appt1.setRefundAmount(3200.0);
+        appt1.setDate("2026-12-01");
+        appt1.setBankName("Commercial Bank");
+        appt1.setBankBranchName("Colombo 03");
+        appt1.setBankAccountHolderName("Kamal Silva");
+        appt1.setBankAccountNumber("8877665544");
+
+        Appointment appt2 = new Appointment();
+        appt2.setId("appt2");
+        appt2.setHospitalId("hospAlpha");
+        appt2.setAppointmentNumber("APT-102");
+        appt2.setStatus("CANCELLED");
+        appt2.setRefundStatus("AWAITING_BANK_DETAILS");
+        appt2.setAmount(3000.0);
+        appt2.setRefundPercentage(50.0);
+        appt2.setRefundAmount(1500.0);
+        appt2.setDate("2026-12-02");
+
+        Appointment apptConfirmed = new Appointment();
+        apptConfirmed.setId("appt3");
+        apptConfirmed.setHospitalId("hospAlpha");
+        apptConfirmed.setStatus("CONFIRMED");
+
+        Appointment apptAlreadyRefunded = new Appointment();
+        apptAlreadyRefunded.setId("appt4");
+        apptAlreadyRefunded.setHospitalId("hospAlpha");
+        apptAlreadyRefunded.setStatus("CANCELLED");
+        apptAlreadyRefunded.setRefundStatus("REFUNDED");
+
+        when(hospitalRepository.findByEmail("alpha@hospital.com")).thenReturn(Optional.of(hospital));
+        when(appointmentRepository.findByHospitalId("hospAlpha")).thenReturn(
+                List.of(appt1, appt2, apptConfirmed, apptAlreadyRefunded)
+        );
+
+        List<AppointmentResponseDTO> pendingRefunds = appointmentService.getPendingRefundsForHospital("hospAlpha", "alpha@hospital.com");
+
+        assertNotNull(pendingRefunds);
+        assertEquals(2, pendingRefunds.size());
+
+        AppointmentResponseDTO dto1 = pendingRefunds.stream().filter(p -> p.getId().equals("appt1")).findFirst().orElse(null);
+        assertNotNull(dto1);
+        assertEquals("AWAITING_PROCESSING", dto1.getRefundStatus());
+        assertEquals("Commercial Bank", dto1.getBankName());
+        assertEquals("Colombo 03", dto1.getBankBranchName());
+        assertEquals("Kamal Silva", dto1.getBankAccountHolderName());
+        assertEquals("8877665544", dto1.getBankAccountNumber());
+        assertEquals("****5544", dto1.getMaskedBankAccountNumber());
+        assertEquals(3200.0, dto1.getRefundAmount());
+
+        AppointmentResponseDTO dto2 = pendingRefunds.stream().filter(p -> p.getId().equals("appt2")).findFirst().orElse(null);
+        assertNotNull(dto2);
+        assertEquals("AWAITING_BANK_DETAILS", dto2.getRefundStatus());
+        assertNull(dto2.getBankAccountNumber());
+    }
+
+    @Test
+    void test47_getPendingRefundsForHospital_wrongHospital_throwsSecurityException() {
+        Hospital hospital = new Hospital();
+        hospital.setId("hospAlpha");
+        hospital.setEmail("alpha@hospital.com");
+
+        when(hospitalRepository.findByEmail("alpha@hospital.com")).thenReturn(Optional.of(hospital));
+
+        SecurityException ex = assertThrows(SecurityException.class, () ->
+                appointmentService.getPendingRefundsForHospital("hospBeta", "alpha@hospital.com")
+        );
+        assertTrue(ex.getMessage().contains("Forbidden"));
+    }
+
+    @Test
+    void test48_getPendingRefundsForHospital_missingParameters_throwsException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                appointmentService.getPendingRefundsForHospital("", "alpha@hospital.com")
+        );
+        assertThrows(SecurityException.class, () ->
+                appointmentService.getPendingRefundsForHospital("hospAlpha", null)
+        );
+    }
+
+    @Test
+    void test49_confirmRefundTransfer_missingBankDetails_throwsIllegalStateException() {
+        Hospital hospital = new Hospital();
+        hospital.setId("hospAlpha");
+        hospital.setName("Alpha Hospital");
+        hospital.setEmail("alpha@hospital.com");
+
+        Appointment appt = new Appointment();
+        appt.setId("apptDetailsMissing");
+        appt.setHospitalId("hospAlpha");
+        appt.setStatus("CANCELLED");
+        appt.setPaid(true);
+        appt.setPaymentStatus("PAID");
+        appt.setRefundAmount(2000.0);
+        appt.setRefundStatus("AWAITING_BANK_DETAILS");
+        appt.setBankAccountNumber(null);
+
+        when(hospitalRepository.findByEmail("alpha@hospital.com")).thenReturn(Optional.of(hospital));
+        when(appointmentRepository.findById("apptDetailsMissing")).thenReturn(Optional.of(appt));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                appointmentService.confirmRefundTransfer("apptDetailsMissing", "alpha@hospital.com", "REF-123", "Done")
+        );
+        assertTrue(ex.getMessage().contains("bank details"));
+    }
+
+    @Test
+    void test50_confirmRefundTransfer_unpaidAppointment_throwsIllegalArgumentException() {
+        Hospital hospital = new Hospital();
+        hospital.setId("hospAlpha");
+        hospital.setName("Alpha Hospital");
+        hospital.setEmail("alpha@hospital.com");
+
+        Appointment appt = new Appointment();
+        appt.setId("apptUnpaid");
+        appt.setHospitalId("hospAlpha");
+        appt.setStatus("CANCELLED");
+        appt.setPaid(false);
+        appt.setPaymentStatus("PENDING");
+        appt.setRefundAmount(2000.0);
+        appt.setRefundStatus("AWAITING_PROCESSING");
+        appt.setBankAccountNumber("1234567890");
+
+        when(hospitalRepository.findByEmail("alpha@hospital.com")).thenReturn(Optional.of(hospital));
+        when(appointmentRepository.findById("apptUnpaid")).thenReturn(Optional.of(appt));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                appointmentService.confirmRefundTransfer("apptUnpaid", "alpha@hospital.com", "REF-123", "Done")
+        );
+        assertTrue(ex.getMessage().contains("unpaid appointment"));
+    }
+
+    @Test
+    void test51_confirmRefundTransfer_wrongHospital_throwsSecurityException() {
+        Hospital hospitalAlpha = new Hospital();
+        hospitalAlpha.setId("hospAlpha");
+        hospitalAlpha.setName("Alpha Hospital");
+        hospitalAlpha.setEmail("alpha@hospital.com");
+
+        Appointment apptBeta = new Appointment();
+        apptBeta.setId("apptBeta");
+        apptBeta.setHospitalId("hospBeta");
+        apptBeta.setStatus("CANCELLED");
+        apptBeta.setPaid(true);
+        apptBeta.setPaymentStatus("PAID");
+        apptBeta.setRefundAmount(1500.0);
+
+        when(hospitalRepository.findByEmail("alpha@hospital.com")).thenReturn(Optional.of(hospitalAlpha));
+        when(appointmentRepository.findById("apptBeta")).thenReturn(Optional.of(apptBeta));
+
+        SecurityException ex = assertThrows(SecurityException.class, () ->
+                appointmentService.confirmRefundTransfer("apptBeta", "alpha@hospital.com", "REF-123", null)
+        );
+        assertTrue(ex.getMessage().contains("Forbidden"));
+    }
+
+    @Test
+    void test52_confirmRefundTransfer_success_marksRefundedAndSendsNotificationAndEmail() {
+        Hospital hospital = new Hospital();
+        hospital.setId("hospAlpha");
+        hospital.setName("Alpha Hospital");
+        hospital.setEmail("alpha@hospital.com");
+
+        Patient patient = new Patient();
+        patient.setId("pat001");
+        patient.setEmail("sunil@example.com");
+        patient.setFirstName("Sunil");
+        patient.setLastName("Perera");
+
+        Appointment appt = new Appointment();
+        appt.setId("apptSuccess");
+        appt.setHospitalId("hospAlpha");
+        appt.setPatientId("pat001");
+        appt.setAppointmentNumber("APT-555");
+        appt.setStatus("CANCELLED");
+        appt.setPaid(true);
+        appt.setPaymentStatus("PAID");
+        appt.setRefundAmount(3500.0);
+        appt.setRefundPercentage(100.0);
+        appt.setRefundStatus("AWAITING_PROCESSING");
+        appt.setBankAccountHolderName("Sunil Perera");
+        appt.setBankName("Sampath Bank");
+        appt.setBankBranchName("Kandy");
+        appt.setBankAccountNumber("123456789012");
+        appt.setDate("2026-12-10");
+        appt.setTime("10:00 AM");
+
+        when(hospitalRepository.findByEmail("alpha@hospital.com")).thenReturn(Optional.of(hospital));
+        when(appointmentRepository.findById("apptSuccess")).thenReturn(Optional.of(appt));
+        when(patientRepository.findById("pat001")).thenReturn(Optional.of(patient));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Appointment result = appointmentService.confirmRefundTransfer("apptSuccess", "alpha@hospital.com", "TXN-998877", "Manually transferred");
+
+        assertNotNull(result);
+        assertEquals("REFUNDED", result.getRefundStatus());
+        assertEquals("TXN-998877", result.getRefundTransactionRef());
+        assertEquals("Alpha Hospital", result.getRefundConfirmedBy());
+        assertNotNull(result.getRefundedAt());
+
+        verify(appointmentRepository, times(1)).save(appt);
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+        verify(emailService, times(1)).sendRefundCompletedEmail(
+                eq("sunil@example.com"),
+                eq("Sunil"),
+                eq("APT-555"),
+                eq(3500.0),
+                eq("TXN-998877"),
+                eq("Alpha Hospital")
+        );
+    }
+
+    @Test
+    void test53_confirmRefundTransfer_duplicateConfirmation_throwsIllegalStateException() {
+        Hospital hospital = new Hospital();
+        hospital.setId("hospAlpha");
+        hospital.setName("Alpha Hospital");
+        hospital.setEmail("alpha@hospital.com");
+
+        Appointment appt = new Appointment();
+        appt.setId("apptAlreadyDone");
+        appt.setHospitalId("hospAlpha");
+        appt.setStatus("CANCELLED");
+        appt.setPaid(true);
+        appt.setPaymentStatus("PAID");
+        appt.setRefundAmount(2000.0);
+        appt.setRefundStatus("REFUNDED");
+        appt.setBankAccountNumber("1234567890");
+
+        when(hospitalRepository.findByEmail("alpha@hospital.com")).thenReturn(Optional.of(hospital));
+        when(appointmentRepository.findById("apptAlreadyDone")).thenReturn(Optional.of(appt));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                appointmentService.confirmRefundTransfer("apptAlreadyDone", "alpha@hospital.com", "REF-DUP", null)
+        );
+        assertTrue(ex.getMessage().contains("already been completed"));
+    }
+
+    @Test
+    void test54_mapToResponseDTO_doesNotExposeBankAccountNumberInGeneralMapping() {
+        Appointment appt = new Appointment();
+        appt.setId("apptSafe");
+        appt.setBankAccountHolderName("Ruwan Perera");
+        appt.setBankName("People's Bank");
+        appt.setBankBranchName("Galle");
+        appt.setBankAccountNumber("9876543210");
+        appt.setStatus("CANCELLED");
+        appt.setRefundStatus("AWAITING_PROCESSING");
+
+        AppointmentResponseDTO dto = appointmentService.mapToResponseDTO(appt);
+
+        assertNotNull(dto);
+        assertEquals("Ruwan Perera", dto.getBankAccountHolderName());
+        assertEquals("People's Bank", dto.getBankName());
+        assertEquals("Galle", dto.getBankBranchName());
+        assertEquals("****3210", dto.getMaskedBankAccountNumber());
+        assertNull(dto.getBankAccountNumber(), "General response mapping must not expose full bank account number");
+    }
 }
+
