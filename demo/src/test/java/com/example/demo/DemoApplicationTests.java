@@ -22,6 +22,8 @@ import com.example.demo.model.Schedule;
 import com.example.demo.repository.ScheduleRepository;
 import com.example.demo.repository.PatientRepository;
 import com.example.demo.dto.AppointmentResponseDTO;
+import com.example.demo.dto.PaymentNotificationDTO;
+import com.example.demo.service.PaymentService;
 import com.example.demo.service.ScheduleService;
 import com.example.demo.service.SmsService;
 import com.example.demo.service.EmailService;
@@ -107,6 +109,7 @@ class DemoApplicationTests {
 		assertFalse(result.isPaid());
 		assertEquals(1000.00, result.getAmount());
 		verify(appointmentRepository, times(1)).save(appointment);
+		verify(notificationRepository, never()).save(any(Notification.class));
 	}
 
 	// 2. Patient A -> Doctor X -> Physical Schedule 1 -> Second booking is rejected
@@ -217,6 +220,7 @@ class DemoApplicationTests {
 		assertEquals("PENDING", result.getStatus());
 		assertEquals("PENDING", result.getPaymentStatus());
 		assertFalse(result.isPaid());
+		verify(notificationRepository, never()).save(any(Notification.class));
 	}
 
 	// 6. Payment History: Patient A retrieves their own payment records
@@ -1506,5 +1510,233 @@ class DemoApplicationTests {
 		java.util.List<ConversationResponseDTO> dtos = service.getDoctorConversations("D1");
 		assertEquals(1, dtos.size(), "Legacy conversations with null patientId must be resolved via appointment and grouped into 1");
 		assertEquals("P1", dtos.get(0).getPatientId());
+	}
+
+	// =========================================================================
+	// PHYSICAL APPOINTMENT BOOKING & NOTIFICATION SCENARIOS
+	// =========================================================================
+
+	// Scenario 1: Initial booking does not send any notifications (Patient, Doctor, Hospital)
+	@Test
+	void testScenario1_BookingInitiation_SendsNoNotifications() {
+		Appointment appt = new Appointment();
+		appt.setPatientId("patient-101");
+		appt.setDoctorId("doctor-202");
+		appt.setScheduleId("schedule-303");
+		appt.setHospitalId("hospital-404");
+		appt.setAppointmentNumber("5");
+		appt.setDate("2026-11-15");
+		appt.setTime("09:00 - 10:00");
+
+		when(appointmentRepository.existsByPatientIdAndDoctorIdAndScheduleId("patient-101", "doctor-202", "schedule-303")).thenReturn(false);
+		when(appointmentRepository.save(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
+
+		Appointment booked = appointmentService.bookAppointment(appt);
+		assertNotNull(booked);
+		assertEquals("PENDING", booked.getStatus());
+		assertEquals("PENDING", booked.getPaymentStatus());
+		assertFalse(booked.isPaid());
+		verify(notificationRepository, never()).save(any(Notification.class));
+	}
+
+	// Scenario 2: Patient Portal My Appointments excludes pending, unpaid, and failed appointments
+	@Test
+	void testScenario2_PatientAppointments_ExcludesPendingUnpaidAndFailed() {
+		Appointment pendingAppt = new Appointment();
+		pendingAppt.setId("a1");
+		pendingAppt.setPatientId("patient-101");
+		pendingAppt.setStatus("PENDING");
+		pendingAppt.setPaymentStatus("PENDING");
+		pendingAppt.setPaid(false);
+
+		Appointment failedAppt = new Appointment();
+		failedAppt.setId("a2");
+		failedAppt.setPatientId("patient-101");
+		failedAppt.setStatus("CANCELLED");
+		failedAppt.setPaymentStatus("FAILED");
+		failedAppt.setPaid(false);
+
+		when(appointmentRepository.findByPatientId("patient-101")).thenReturn(java.util.List.of(pendingAppt, failedAppt));
+
+		java.util.List<Appointment> result = appointmentService.getAppointmentsForPatient("patient-101");
+		assertNotNull(result);
+		assertTrue(result.isEmpty(), "Pending and failed unpaid appointments must not appear in Patient Portal My Appointments");
+	}
+
+	// Scenario 3: Patient Portal My Appointments includes confirmed and paid appointments
+	@Test
+	void testScenario3_PatientAppointments_IncludesConfirmedAndPaid() {
+		Appointment confirmedAppt = new Appointment();
+		confirmedAppt.setId("a1");
+		confirmedAppt.setPatientId("patient-101");
+		confirmedAppt.setStatus("CONFIRMED");
+		confirmedAppt.setPaymentStatus("PAID");
+		confirmedAppt.setPaid(true);
+
+		Appointment pendingAppt = new Appointment();
+		pendingAppt.setId("a2");
+		pendingAppt.setPatientId("patient-101");
+		pendingAppt.setStatus("PENDING");
+		pendingAppt.setPaymentStatus("PENDING");
+		pendingAppt.setPaid(false);
+
+		when(appointmentRepository.findByPatientId("patient-101")).thenReturn(java.util.List.of(confirmedAppt, pendingAppt));
+
+		java.util.List<Appointment> result = appointmentService.getAppointmentsForPatient("patient-101");
+		assertNotNull(result);
+		assertEquals(1, result.size());
+		assertEquals("a1", result.get(0).getId());
+		assertEquals("CONFIRMED", result.get(0).getStatus());
+		assertTrue(result.get(0).isPaid());
+	}
+
+	// Scenario 4: Cancelled or failed appointment cannot be confirmed by unverified frontend callback
+	@Test
+	void testScenario4_CancelledOrFailedAppointment_CannotBeConfirmedByFrontendCallback() {
+		Appointment cancelledAppt = new Appointment();
+		cancelledAppt.setId("appt-cancelled");
+		cancelledAppt.setStatus("CANCELLED");
+		cancelledAppt.setPaymentStatus("FAILED");
+		cancelledAppt.setPaid(false);
+
+		AppointmentRepository mockApptRepo = mock(AppointmentRepository.class);
+		when(mockApptRepo.findById("appt-cancelled")).thenReturn(Optional.of(cancelledAppt));
+
+		PaymentService paymentService = new PaymentService();
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "appointmentRepo", mockApptRepo);
+
+		assertThrows(IllegalStateException.class, () -> {
+			paymentService.confirmPaymentSuccess("appt-cancelled", "PAYHERE-999", 1000.00);
+		});
+	}
+
+	// Scenario 5: PayHere IPN cancellation updates appointment to CANCELLED and FAILED
+	@Test
+	void testScenario5_PayHereIpn_CancellationUpdatesStatusToCancelledAndFailed() {
+		Appointment pendingAppt = new Appointment();
+		pendingAppt.setId("order-cancel");
+		pendingAppt.setStatus("PENDING");
+		pendingAppt.setPaymentStatus("PENDING");
+		pendingAppt.setPaid(false);
+
+		AppointmentRepository mockApptRepo = mock(AppointmentRepository.class);
+		NotificationRepository mockNotifRepo = mock(NotificationRepository.class);
+		when(mockApptRepo.findById("order-cancel")).thenReturn(Optional.of(pendingAppt));
+		when(mockApptRepo.save(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
+
+		PaymentService paymentService = new PaymentService();
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "appointmentRepo", mockApptRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "notificationRepo", mockNotifRepo);
+
+		paymentService.cancelPendingPayment("order-cancel");
+
+		assertEquals("CANCELLED", pendingAppt.getStatus());
+		assertEquals("FAILED", pendingAppt.getPaymentStatus());
+		assertFalse(pendingAppt.isPaid());
+		verify(mockNotifRepo, never()).save(any(Notification.class));
+	}
+
+	// Scenario 6: Repeated payment-success callback is idempotent and does not create duplicate notifications
+	@Test
+	void testScenario6_RepeatedPaymentSuccessCallback_IsIdempotentAndDoesNotDuplicateNotifications() {
+		Appointment appt = new Appointment();
+		appt.setId("appt-idem");
+		appt.setPatientId("patientA");
+		appt.setDoctorId("doctorX");
+		appt.setHospitalId("hospital-001");
+		appt.setScheduleId("schedule1");
+		appt.setAppointmentNumber("APT-001");
+		appt.setStatus("PENDING");
+		appt.setPaymentStatus("PENDING");
+		appt.setPaid(false);
+		appt.setAmount(1000.00);
+
+		Doctor doc = new Doctor();
+		doc.setTitle("Dr.");
+		doc.setFirstName("John");
+		doc.setLastName("Doe");
+
+		AppointmentRepository mockApptRepo = mock(AppointmentRepository.class);
+		NotificationRepository mockNotifRepo = mock(NotificationRepository.class);
+		DoctorRepository mockDocRepo = mock(DoctorRepository.class);
+		HospitalRepository mockHospRepo = mock(HospitalRepository.class);
+		LabTestRepository mockLabRepo = mock(LabTestRepository.class);
+		ScheduleRepository mockScheduleRepo = mock(ScheduleRepository.class);
+
+		when(mockApptRepo.findById("appt-idem")).thenReturn(Optional.of(appt));
+		when(mockApptRepo.save(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
+		when(mockDocRepo.findById("doctorX")).thenReturn(Optional.of(doc));
+
+		PaymentService paymentService = new PaymentService();
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "appointmentRepo", mockApptRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "notificationRepo", mockNotifRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "doctorRepo", mockDocRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "hospitalRepo", mockHospRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "labRepo", mockLabRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "scheduleRepo", mockScheduleRepo);
+
+		// First call
+		Appointment first = paymentService.confirmPaymentSuccess("appt-idem", "PAY-1", 1000.00);
+		assertEquals("CONFIRMED", first.getStatus());
+		assertEquals("PAID", first.getPaymentStatus());
+		assertTrue(first.isPaid());
+		verify(mockNotifRepo, times(3)).save(any(Notification.class));
+
+		// Second repeated call
+		Appointment second = paymentService.confirmPaymentSuccess("appt-idem", "PAY-1", 1000.00);
+		assertEquals("CONFIRMED", second.getStatus());
+		assertEquals("PAID", second.getPaymentStatus());
+		assertTrue(second.isPaid());
+
+		// Verify no additional notifications were saved on the second call (still exactly 3 total)
+		verify(mockNotifRepo, times(3)).save(any(Notification.class));
+	}
+
+	// Scenario 7: Frontend callback and PayHere IPN both reporting success result in exactly one confirmation and one notification set
+	@Test
+	void testScenario7_FrontendCallbackAndIpnBothSuccess_IsIdempotentAndSendsExactlyOneNotificationSet() {
+		Appointment appt = new Appointment();
+		appt.setId("order-double");
+		appt.setPatientId("patientA");
+		appt.setDoctorId("doctorX");
+		appt.setHospitalId("hospital-001");
+		appt.setScheduleId("schedule1");
+		appt.setAppointmentNumber("APT-002");
+		appt.setStatus("PENDING");
+		appt.setPaymentStatus("PENDING");
+		appt.setPaid(false);
+		appt.setAmount(1000.00);
+
+		Doctor doc = new Doctor();
+		doc.setTitle("Dr.");
+		doc.setFirstName("Alice");
+		doc.setLastName("Smith");
+
+		AppointmentRepository mockApptRepo = mock(AppointmentRepository.class);
+		NotificationRepository mockNotifRepo = mock(NotificationRepository.class);
+		DoctorRepository mockDocRepo = mock(DoctorRepository.class);
+		ScheduleRepository mockScheduleRepo = mock(ScheduleRepository.class);
+
+		when(mockApptRepo.findById("order-double")).thenReturn(Optional.of(appt));
+		when(mockApptRepo.save(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
+		when(mockDocRepo.findById("doctorX")).thenReturn(Optional.of(doc));
+
+		PaymentService paymentService = new PaymentService();
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "appointmentRepo", mockApptRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "notificationRepo", mockNotifRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "doctorRepo", mockDocRepo);
+		org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "scheduleRepo", mockScheduleRepo);
+
+		// 1. Frontend callback reports success
+		Appointment confirmed = paymentService.confirmPaymentSuccess("order-double", "PAY-FE", 1000.00, false);
+		assertEquals("CONFIRMED", confirmed.getStatus());
+		verify(mockNotifRepo, times(3)).save(any(Notification.class));
+
+		// 2. IPN callback reports success
+		Appointment ipnConfirmed = paymentService.confirmPaymentSuccess("order-double", "PAY-IPN", 1000.00, true);
+		assertEquals("CONFIRMED", ipnConfirmed.getStatus());
+
+		// Ensure still exactly 3 notifications (one each for Patient, Doctor, Hospital)
+		verify(mockNotifRepo, times(3)).save(any(Notification.class));
 	}
 }
