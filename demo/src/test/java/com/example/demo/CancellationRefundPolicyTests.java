@@ -652,6 +652,111 @@ class CancellationRefundPolicyTests {
     }
 
     @Test
+    void test27a_patientSubmitBankDetails_missingBranchName_throwsIllegalArgumentException() {
+        com.example.demo.dto.BankDetailsRequest request = new com.example.demo.dto.BankDetailsRequest();
+        request.setAccountHolderName("Alice Wonderland");
+        request.setBankName("Commercial Bank");
+        request.setBranchName(""); // missing branch name
+        request.setAccountNumber("1234567890");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                appointmentService.submitBankDetails("appt1", "alice@test.com", request)
+        );
+        assertTrue(ex.getMessage().contains("Branch name is required"));
+    }
+
+    @Test
+    void test27b_patientSubmitBankDetails_missingRequiredFields_throwsIllegalArgumentException() {
+        // Missing account holder name
+        com.example.demo.dto.BankDetailsRequest reqNoHolder = new com.example.demo.dto.BankDetailsRequest();
+        reqNoHolder.setBankName("Bank");
+        reqNoHolder.setBranchName("Branch");
+        reqNoHolder.setAccountNumber("12345678");
+        assertThrows(IllegalArgumentException.class, () ->
+                appointmentService.submitBankDetails("appt1", "alice@test.com", reqNoHolder)
+        );
+
+        // Missing bank name
+        com.example.demo.dto.BankDetailsRequest reqNoBank = new com.example.demo.dto.BankDetailsRequest();
+        reqNoBank.setAccountHolderName("Alice");
+        reqNoBank.setBranchName("Branch");
+        reqNoBank.setAccountNumber("12345678");
+        assertThrows(IllegalArgumentException.class, () ->
+                appointmentService.submitBankDetails("appt1", "alice@test.com", reqNoBank)
+        );
+
+        // Missing account number
+        com.example.demo.dto.BankDetailsRequest reqNoAcc = new com.example.demo.dto.BankDetailsRequest();
+        reqNoAcc.setAccountHolderName("Alice");
+        reqNoAcc.setBankName("Bank");
+        reqNoAcc.setBranchName("Branch");
+        assertThrows(IllegalArgumentException.class, () ->
+                appointmentService.submitBankDetails("appt1", "alice@test.com", reqNoAcc)
+        );
+
+        // Invalid account number format
+        com.example.demo.dto.BankDetailsRequest reqInvalidAcc = new com.example.demo.dto.BankDetailsRequest();
+        reqInvalidAcc.setAccountHolderName("Alice");
+        reqInvalidAcc.setBankName("Bank");
+        reqInvalidAcc.setBranchName("Branch");
+        reqInvalidAcc.setAccountNumber("12");
+        assertThrows(IllegalArgumentException.class, () ->
+                appointmentService.submitBankDetails("appt1", "alice@test.com", reqInvalidAcc)
+        );
+    }
+
+    @Test
+    void test27c_patientSubmitBankDetails_unauthorizedRequest_throwsSecurityException() {
+        com.example.demo.dto.BankDetailsRequest request = new com.example.demo.dto.BankDetailsRequest();
+        request.setAccountHolderName("Alice");
+        request.setBankName("Bank");
+        request.setBranchName("Branch");
+        request.setAccountNumber("12345678");
+
+        // Null patient email
+        assertThrows(SecurityException.class, () ->
+                appointmentService.submitBankDetails("appt1", null, request)
+        );
+
+        // Non-existent patient
+        when(patientRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
+        assertThrows(SecurityException.class, () ->
+                appointmentService.submitBankDetails("appt1", "unknown@test.com", request)
+        );
+    }
+
+    @Test
+    void test27d_patientSubmitBankDetails_acceptsBankBranchNameAlias_succeeds() {
+        Patient patient = new Patient();
+        patient.setId("patient1");
+        patient.setEmail("alice@test.com");
+
+        Appointment appt = new Appointment();
+        appt.setId("appt1");
+        appt.setPatientId("patient1");
+        appt.setStatus("CANCELLED");
+        appt.setRefundStatus("AWAITING_BANK_DETAILS");
+        appt.setRefundAmount(2000.0);
+
+        when(patientRepository.findByEmail("alice@test.com")).thenReturn(Optional.of(patient));
+        when(appointmentRepository.findById("appt1")).thenReturn(Optional.of(appt));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.example.demo.dto.BankDetailsRequest request = new com.example.demo.dto.BankDetailsRequest();
+        request.setAccountHolderName("Alice Wonderland");
+        request.setBankName("Commercial Bank");
+        request.setBankBranchName("Kandy Branch");
+        request.setAccountNumber("9876543210");
+
+        Appointment updated = appointmentService.submitBankDetails("appt1", "alice@test.com", request);
+
+        assertEquals("AWAITING_PROCESSING", updated.getRefundStatus());
+        assertEquals("Commercial Bank", updated.getBankName());
+        assertEquals("Kandy Branch", updated.getBankBranchName());
+        assertEquals("9876543210", updated.getBankAccountNumber());
+    }
+
+    @Test
     void test28_doctorCancelSchedule_withActiveBookings_cascadesAndRefunds100Percent() {
         Schedule schedule = new Schedule();
         schedule.setId("schedDoc");
