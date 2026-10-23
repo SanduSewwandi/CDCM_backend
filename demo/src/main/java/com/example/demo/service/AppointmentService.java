@@ -927,7 +927,11 @@ public class AppointmentService {
         if (request.getBankName() == null || request.getBankName().trim().isEmpty()) {
             throw new IllegalArgumentException("Bank name is required.");
         }
-        if (request.getBranchName() == null || request.getBranchName().trim().isEmpty()) {
+        String branch = request.getBranchName() != null && !request.getBranchName().trim().isEmpty()
+                ? request.getBranchName().trim()
+                : (request.getBankBranchName() != null && !request.getBankBranchName().trim().isEmpty()
+                ? request.getBankBranchName().trim() : null);
+        if (branch == null || branch.isEmpty()) {
             throw new IllegalArgumentException("Branch name is required.");
         }
         if (request.getAccountNumber() == null || request.getAccountNumber().trim().isEmpty()) {
@@ -938,8 +942,11 @@ public class AppointmentService {
             throw new IllegalArgumentException("Invalid bank account number format. Must contain 5-30 alphanumeric characters.");
         }
 
-        Patient patient = patientRepository.findByEmail(patientEmail.trim().toLowerCase())
-                .orElseThrow(() -> new SecurityException("Authenticated patient profile not found."));
+        Optional<Patient> pOpt = patientRepository.findByEmail(patientEmail.trim().toLowerCase());
+        if (pOpt.isEmpty()) {
+            pOpt = patientRepository.findByEmail(patientEmail.trim());
+        }
+        Patient patient = pOpt.orElseThrow(() -> new SecurityException("Authenticated patient profile not found."));
 
         Appointment appt = appointmentRepository.findById(appointmentId.trim())
                 .orElseThrow(() -> new IllegalArgumentException("Appointment not found with id: " + appointmentId));
@@ -962,7 +969,7 @@ public class AppointmentService {
 
         appt.setBankAccountHolderName(request.getAccountHolderName().trim());
         appt.setBankName(request.getBankName().trim());
-        appt.setBankBranchName(request.getBranchName().trim());
+        appt.setBankBranchName(branch);
         appt.setBankAccountNumber(cleanAccNum);
         appt.setBankDetailsSubmittedAt(LocalDateTime.now());
         appt.setRefundStatus("AWAITING_PROCESSING");
