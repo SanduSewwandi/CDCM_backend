@@ -37,6 +37,7 @@ public class AppointmentResponseDTO {
     private String bankName;
     private String bankBranchName;
     private String maskedBankAccountNumber;
+    private String bankAccountNumber;
     private java.time.LocalDateTime bankDetailsSubmittedAt;
     private String refundTransactionRef;
     private String refundConfirmedBy;
