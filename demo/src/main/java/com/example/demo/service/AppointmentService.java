@@ -1012,7 +1012,9 @@ public class AppointmentService {
             throw new SecurityException("Authentication is required.");
         }
 
-        Hospital hospital = hospitalRepository.findByEmail(hospitalEmail.trim().toLowerCase())
+        String cleanEmail = hospitalEmail.trim().toLowerCase();
+        Hospital hospital = hospitalRepository.findByEmail(cleanEmail)
+                .or(() -> hospitalRepository.findByEmail(hospitalEmail.trim()))
                 .orElseThrow(() -> new SecurityException("Hospital profile not found."));
 
         if (!hospital.getId().equals(hospitalId.trim())) {
@@ -1026,6 +1028,12 @@ public class AppointmentService {
                         ("AWAITING_BANK_DETAILS".equalsIgnoreCase(a.getRefundStatus()) ||
                          "AWAITING_PROCESSING".equalsIgnoreCase(a.getRefundStatus())))
                 .map(a -> {
+                    // If bank details were submitted but status is still awaiting bank details, self-heal status
+                    if (a.getBankAccountNumber() != null && !a.getBankAccountNumber().trim().isEmpty() &&
+                            "AWAITING_BANK_DETAILS".equalsIgnoreCase(a.getRefundStatus())) {
+                        a.setRefundStatus("AWAITING_PROCESSING");
+                        appointmentRepository.save(a);
+                    }
                     AppointmentResponseDTO dto = this.mapToResponseDTO(a);
                     dto.setBankAccountNumber(a.getBankAccountNumber());
                     return dto;
@@ -1033,6 +1041,42 @@ public class AppointmentService {
                 .sorted(Comparator.comparing(AppointmentResponseDTO::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(AppointmentResponseDTO::getAppointmentNumber, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
+    }
+
+    // =========================================================
+    // HOSPITAL GET SINGLE APPOINTMENT REFUND DETAILS
+    // =========================================================
+    public AppointmentResponseDTO getRefundDetailsForHospital(String appointmentId, String hospitalEmail) {
+        if (appointmentId == null || appointmentId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Appointment ID is required.");
+        }
+        if (hospitalEmail == null || hospitalEmail.trim().isEmpty()) {
+            throw new SecurityException("Authentication is required.");
+        }
+
+        String cleanEmail = hospitalEmail.trim().toLowerCase();
+        Hospital hospital = hospitalRepository.findByEmail(cleanEmail)
+                .or(() -> hospitalRepository.findByEmail(hospitalEmail.trim()))
+                .orElseThrow(() -> new SecurityException("Hospital profile not found."));
+
+        Appointment appt = appointmentRepository.findById(appointmentId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Appointment not found with id: " + appointmentId));
+
+        if (appt.getHospitalId() == null || !appt.getHospitalId().equals(hospital.getId())) {
+            throw new SecurityException("Forbidden: You cannot access refund details belonging to another hospital.");
+        }
+
+        // If bank account is saved on the appointment, ensure status is AWAITING_PROCESSING
+        if (appt.getBankAccountNumber() != null && !appt.getBankAccountNumber().trim().isEmpty() &&
+                (appt.getRefundStatus() == null || "AWAITING_BANK_DETAILS".equalsIgnoreCase(appt.getRefundStatus()))) {
+            appt.setRefundStatus("AWAITING_PROCESSING");
+            appt = appointmentRepository.save(appt);
+        }
+
+        AppointmentResponseDTO dto = this.mapToResponseDTO(appt);
+        // Expose full bank account number only to this authorized hospital administrator
+        dto.setBankAccountNumber(appt.getBankAccountNumber());
+        return dto;
     }
 
     // =========================================================
@@ -1046,7 +1090,9 @@ public class AppointmentService {
             throw new SecurityException("Authentication is required.");
         }
 
-        Hospital hospital = hospitalRepository.findByEmail(hospitalEmail.trim().toLowerCase())
+        String cleanEmail = hospitalEmail.trim().toLowerCase();
+        Hospital hospital = hospitalRepository.findByEmail(cleanEmail)
+                .or(() -> hospitalRepository.findByEmail(hospitalEmail.trim()))
                 .orElseThrow(() -> new SecurityException("Hospital profile not found."));
 
         Appointment appt = appointmentRepository.findById(appointmentId.trim())
@@ -1072,8 +1118,7 @@ public class AppointmentService {
             throw new IllegalArgumentException("Cannot complete refund for an unpaid appointment.");
         }
 
-        if (appt.getBankAccountNumber() == null || appt.getBankAccountNumber().trim().isEmpty()
-                || "AWAITING_BANK_DETAILS".equalsIgnoreCase(appt.getRefundStatus())) {
+        if (appt.getBankAccountNumber() == null || appt.getBankAccountNumber().trim().isEmpty()) {
             throw new IllegalStateException("Patient has not submitted bank details yet.");
         }
 

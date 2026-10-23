@@ -191,6 +191,28 @@ public class AppointmentController {
     }
 
     // =========================================================
+    // GET APPOINTMENT REFUND DETAILS (Hospital)
+    // =========================================================
+    @GetMapping("/{appointmentId}/refund-details")
+    public ResponseEntity<?> getRefundDetails(
+            @PathVariable String appointmentId,
+            Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Authentication required"));
+        }
+        try {
+            AppointmentResponseDTO details = appointmentService.getRefundDetailsForHospital(appointmentId, principal.getName());
+            return ResponseEntity.ok(details);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.status(404).body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // =========================================================
     // CONFIRM REFUND TRANSFER (Hospital)
     // =========================================================
     @PutMapping("/{appointmentId}/confirm-refund")
