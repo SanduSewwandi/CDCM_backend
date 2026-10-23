@@ -38,6 +38,9 @@ public class Schedule {
      */
     private String status;
 
+    private String rejectionReason;
+    private String cancellationReason;
+
     private String doctorName;
     private String specialty;
 
@@ -256,5 +259,25 @@ public class Schedule {
 
     public void setAvailableSlots(long availableSlots) {
         this.availableSlots = availableSlots;
+    }
+
+    // =========================
+    // REJECTION & CANCELLATION REASONS
+    // =========================
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public void setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
     }
 }

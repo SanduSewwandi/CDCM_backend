@@ -2,7 +2,9 @@ package com.example.demo;
 
 import com.example.demo.model.Appointment;
 import com.example.demo.model.Doctor;
+import com.example.demo.model.Hospital;
 import com.example.demo.model.Notification;
+import com.example.demo.model.Patient;
 import com.example.demo.repository.AppointmentRepository;
 import com.example.demo.repository.DoctorRepository;
 import com.example.demo.repository.NotificationRepository;
@@ -577,48 +579,152 @@ class DemoApplicationTests {
 		verify(scheduleRepository, times(1)).save(schedule);
 	}
 
-	// CASE 10: Future ACCEPTED schedule + one active booking => Doctor cannot cancel.
+	// CASE 10: Future ACCEPTED schedule + one active booking => Doctor can cancel, cascades to booking with 100% refund in AWAITING_BANK_DETAILS.
 	@Test
 	void testCancelSchedule_Case10_FutureAcceptedOneActiveBooking_ThrowsException() {
 		Schedule schedule = new Schedule();
 		schedule.setId("sched-future-1");
 		schedule.setStatus("ACCEPTED");
 		schedule.setDate("2099-01-01");
+		schedule.setStartTime("10:00 AM");
 		schedule.setEndTime("12:00 PM");
+		schedule.setDoctorId("doc1");
+		schedule.setHospitalId("hosp1");
+		schedule.setType("PHYSICAL");
+
+		Appointment appt = new Appointment();
+		appt.setId("appt-future-1");
+		appt.setScheduleId("sched-future-1");
+		appt.setPatientId("patient-1");
+		appt.setDoctorId("doc1");
+		appt.setHospitalId("hosp1");
+		appt.setStatus("CONFIRMED");
+		appt.setPaid(true);
+		appt.setPaymentStatus("PAID");
+		appt.setAmount(2000.0);
+
+		Doctor doctor = new Doctor();
+		doctor.setId("doc1");
+		doctor.setFirstName("John");
+		doctor.setLastName("Doe");
+
+		Hospital hospital = new Hospital();
+		hospital.setId("hosp1");
+		hospital.setName("General Hospital");
+
+		Patient patient = new Patient();
+		patient.setId("patient-1");
+		patient.setEmail("patient1@example.com");
+		patient.setContactNumber("0771234567");
+		patient.setFirstName("Patient One");
 
 		when(scheduleRepository.findById("sched-future-1")).thenReturn(Optional.of(schedule));
-		when(appointmentRepository.existsByScheduleIdAndStatusIn(eq("sched-future-1"), any())).thenReturn(true);
+		when(scheduleRepository.save(any(Schedule.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(doctorRepository.findById("doc1")).thenReturn(Optional.of(doctor));
+		when(hospitalRepository.findById("hosp1")).thenReturn(Optional.of(hospital));
+		when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+		when(appointmentRepository.findByScheduleId("sched-future-1")).thenReturn(java.util.List.of(appt));
+		when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		ScheduleService scheduleService = createScheduleService();
-		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-			scheduleService.cancelSchedule("sched-future-1");
-		});
+		Schedule cancelled = scheduleService.cancelSchedule("sched-future-1");
 
-		assertEquals("Cannot cancel this schedule because patients have already booked appointments.", ex.getMessage());
-		assertEquals("ACCEPTED", schedule.getStatus());
-		verify(scheduleRepository, never()).save(any(Schedule.class));
+		assertNotNull(cancelled);
+		assertEquals("CANCELLED", cancelled.getStatus());
+		verify(scheduleRepository, times(1)).save(schedule);
+
+		assertEquals("CANCELLED", appt.getStatus());
+		assertEquals("DOCTOR", appt.getCancelledBy());
+		assertEquals(100.0, appt.getRefundPercentage());
+		assertEquals(2000.0, appt.getRefundAmount());
+		assertEquals("AWAITING_BANK_DETAILS", appt.getRefundStatus());
+		assertNull(appt.getRefundedAt());
+		verify(appointmentRepository, times(1)).save(appt);
 	}
 
-	// CASE 11: Future ACCEPTED schedule + multiple active bookings => Doctor cannot cancel.
+	// CASE 11: Future ACCEPTED schedule + multiple active bookings => Doctor can cancel, cascade cancellation consistently without false refunds.
 	@Test
 	void testCancelSchedule_Case11_FutureAcceptedMultipleActiveBookings_ThrowsException() {
 		Schedule schedule = new Schedule();
 		schedule.setId("sched-future-multi");
 		schedule.setStatus("ACCEPTED");
 		schedule.setDate("2099-01-01");
+		schedule.setStartTime("10:00 AM");
 		schedule.setEndTime("12:00 PM");
+		schedule.setDoctorId("doc1");
+		schedule.setHospitalId("hosp1");
+		schedule.setType("PHYSICAL");
+
+		Doctor doctor = new Doctor();
+		doctor.setId("doc1");
+		doctor.setFirstName("John");
+		doctor.setLastName("Doe");
+
+		Hospital hospital = new Hospital();
+		hospital.setId("hosp1");
+		hospital.setName("General Hospital");
+
+		Appointment appt1 = new Appointment();
+		appt1.setId("appt-multi-paid");
+		appt1.setScheduleId("sched-future-multi");
+		appt1.setPatientId("patient-1");
+		appt1.setDoctorId("doc1");
+		appt1.setHospitalId("hosp1");
+		appt1.setStatus("CONFIRMED");
+		appt1.setPaid(true);
+		appt1.setPaymentStatus("PAID");
+		appt1.setAmount(2500.0);
+
+		Appointment appt2 = new Appointment();
+		appt2.setId("appt-multi-unpaid");
+		appt2.setScheduleId("sched-future-multi");
+		appt2.setPatientId("patient-2");
+		appt2.setDoctorId("doc1");
+		appt2.setHospitalId("hosp1");
+		appt2.setStatus("PENDING");
+		appt2.setPaid(false);
+		appt2.setPaymentStatus("PENDING");
+		appt2.setAmount(2500.0);
+
+		Appointment appt3 = new Appointment();
+		appt3.setId("appt-multi-cancelled");
+		appt3.setScheduleId("sched-future-multi");
+		appt3.setStatus("CANCELLED");
+		appt3.setCancelledBy("PATIENT");
+		appt3.setRefundStatus("AWAITING_BANK_DETAILS");
 
 		when(scheduleRepository.findById("sched-future-multi")).thenReturn(Optional.of(schedule));
-		when(appointmentRepository.existsByScheduleIdAndStatusIn(eq("sched-future-multi"), any())).thenReturn(true);
+		when(scheduleRepository.save(any(Schedule.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(doctorRepository.findById("doc1")).thenReturn(Optional.of(doctor));
+		when(hospitalRepository.findById("hosp1")).thenReturn(Optional.of(hospital));
+		when(appointmentRepository.findByScheduleId("sched-future-multi")).thenReturn(java.util.List.of(appt1, appt2, appt3));
+		when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		ScheduleService scheduleService = createScheduleService();
-		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-			scheduleService.cancelSchedule("sched-future-multi");
-		});
+		Schedule cancelled = scheduleService.cancelSchedule("sched-future-multi");
 
-		assertTrue(ex.getMessage().contains("already booked appointments"));
-		assertEquals("ACCEPTED", schedule.getStatus());
-		verify(scheduleRepository, never()).save(any(Schedule.class));
+		assertNotNull(cancelled);
+		assertEquals("CANCELLED", cancelled.getStatus());
+		verify(scheduleRepository, times(1)).save(schedule);
+
+		// Paid appointment: cancelled with 100% refund, awaiting bank details
+		assertEquals("CANCELLED", appt1.getStatus());
+		assertEquals("DOCTOR", appt1.getCancelledBy());
+		assertEquals(100.0, appt1.getRefundPercentage());
+		assertEquals(2500.0, appt1.getRefundAmount());
+		assertEquals("AWAITING_BANK_DETAILS", appt1.getRefundStatus());
+		assertNull(appt1.getRefundedAt());
+
+		// Unpaid/pending appointment: cancelled with 0.0 refund, NOT_APPLICABLE, paymentStatus FAILED
+		assertEquals("CANCELLED", appt2.getStatus());
+		assertEquals("DOCTOR", appt2.getCancelledBy());
+		assertEquals(0.0, appt2.getRefundPercentage());
+		assertEquals(0.0, appt2.getRefundAmount());
+		assertEquals("NOT_APPLICABLE", appt2.getRefundStatus());
+		assertEquals("FAILED", appt2.getPaymentStatus());
+
+		// Already cancelled appointment: unmodified
+		assertEquals("PATIENT", appt3.getCancelledBy());
 	}
 
 	// CASE 12: Expired ACCEPTED schedule + zero bookings => Doctor cannot cancel because it is expired.
@@ -643,27 +749,72 @@ class DemoApplicationTests {
 		verify(scheduleRepository, never()).save(any(Schedule.class));
 	}
 
-	// CASE 13: Direct API/Postman cancellation attempt on schedule with active booking => HTTP error and schedule remains unchanged.
+	// CASE 13: Direct API/Postman cancellation attempt on schedule with active booking => Cancels schedule, cascades refunds, and prevents new bookings.
 	@Test
 	void testCancelSchedule_Case13_DirectAttemptOnScheduleWithActiveBooking_ScheduleUnchanged() {
 		Schedule schedule = new Schedule();
 		schedule.setId("sched-direct-attempt");
 		schedule.setStatus("ACCEPTED");
 		schedule.setDate("2099-05-20");
+		schedule.setStartTime("02:00 PM");
 		schedule.setEndTime("04:00 PM");
+		schedule.setDoctorId("doc1");
+		schedule.setHospitalId("hosp1");
+		schedule.setType("PHYSICAL");
+
+		Appointment activeAppt = new Appointment();
+		activeAppt.setId("appt-direct-1");
+		activeAppt.setScheduleId("sched-direct-attempt");
+		activeAppt.setPatientId("patient-1");
+		activeAppt.setDoctorId("doc1");
+		activeAppt.setHospitalId("hosp1");
+		activeAppt.setStatus("CONFIRMED");
+		activeAppt.setPaid(true);
+		activeAppt.setPaymentStatus("PAID");
+		activeAppt.setAmount(1800.0);
+
+		Doctor doc = new Doctor();
+		doc.setId("doc1");
+		doc.setFirstName("Jane");
+		doc.setLastName("Smith");
+
+		Hospital hosp = new Hospital();
+		hosp.setId("hosp1");
+		hosp.setName("Metro Hospital");
 
 		when(scheduleRepository.findById("sched-direct-attempt")).thenReturn(Optional.of(schedule));
-		when(appointmentRepository.existsByScheduleIdAndStatusIn(eq("sched-direct-attempt"), any())).thenReturn(true);
+		when(scheduleRepository.save(any(Schedule.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(doctorRepository.findById("doc1")).thenReturn(Optional.of(doc));
+		when(hospitalRepository.findById("hosp1")).thenReturn(Optional.of(hosp));
+		when(appointmentRepository.findByScheduleId("sched-direct-attempt")).thenReturn(java.util.List.of(activeAppt));
+		when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		ScheduleService scheduleService = createScheduleService();
-		assertThrows(IllegalArgumentException.class, () -> {
-			scheduleService.cancelSchedule("sched-direct-attempt");
-		});
+		Schedule cancelled = scheduleService.cancelSchedule("sched-direct-attempt");
 
-		// Ensure schedule was not saved with CANCELLED
-		assertEquals("ACCEPTED", schedule.getStatus());
-		verify(scheduleRepository, never()).save(any(Schedule.class));
-		verify(appointmentRepository, never()).save(any(Appointment.class));
+		assertNotNull(cancelled);
+		assertEquals("CANCELLED", cancelled.getStatus());
+		verify(scheduleRepository, times(1)).save(schedule);
+
+		assertEquals("CANCELLED", activeAppt.getStatus());
+		assertEquals("DOCTOR", activeAppt.getCancelledBy());
+		assertEquals(100.0, activeAppt.getRefundPercentage());
+		assertEquals(1800.0, activeAppt.getRefundAmount());
+		assertEquals("AWAITING_BANK_DETAILS", activeAppt.getRefundStatus());
+		assertNull(activeAppt.getRefundedAt());
+
+		// Ensure cancellation prevents new patient bookings on this schedule
+		Appointment newBookingAttempt = new Appointment();
+		newBookingAttempt.setPatientId("patient-new");
+		newBookingAttempt.setDoctorId("doc1");
+		newBookingAttempt.setScheduleId("sched-direct-attempt");
+		newBookingAttempt.setAppointmentNumber("2");
+		newBookingAttempt.setDate("2099-05-20");
+
+		IllegalStateException ex = assertThrows(IllegalStateException.class, () -> {
+			appointmentService.bookAppointment(newBookingAttempt);
+		});
+		assertTrue(ex.getMessage().contains("cancelled schedule"));
 	}
 
 	// CASE 14: Cancelled appointments do not block cancellation, and appointments are not deleted.

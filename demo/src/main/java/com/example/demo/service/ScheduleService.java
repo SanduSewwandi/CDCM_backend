@@ -260,8 +260,27 @@ public class ScheduleService {
 
         // ----------------- ACCEPT / REJECT -----------------
         public Schedule acceptSchedule(String id) {
-                Schedule schedule = scheduleRepository.findById(id)
+                return acceptScheduleByDoctor(id, null);
+        }
+
+        public Schedule acceptScheduleByDoctor(String id, String doctorEmail) {
+                if (id == null || id.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Schedule ID is required.");
+                }
+
+                Schedule schedule = scheduleRepository.findById(id.trim())
                                 .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
+
+                if (doctorEmail != null && !doctorEmail.trim().isEmpty() && doctorRepository != null) {
+                        Doctor doctor = doctorRepository.findByEmail(doctorEmail.trim().toLowerCase()).orElse(null);
+                        if (doctor != null && schedule.getDoctorId() != null && !schedule.getDoctorId().equals(doctor.getId())) {
+                                throw new SecurityException("Forbidden: You are not authorized to accept another doctor's schedule.");
+                        }
+                }
+
+                if (!"PENDING".equalsIgnoreCase(schedule.getStatus())) {
+                        throw new IllegalStateException("Only pending schedules can be accepted. Current status: " + schedule.getStatus());
+                }
 
                 if (isSchedulePast(schedule.getDate(), schedule.getEndTime())) {
                         throw new IllegalArgumentException("Cannot accept an expired schedule.");
@@ -307,14 +326,44 @@ public class ScheduleService {
         }
 
         public Schedule rejectSchedule(String id) {
-                Schedule schedule = scheduleRepository.findById(id)
+                return rejectSchedule(id, (String) null);
+        }
+
+        public Schedule rejectSchedule(String id, String reason) {
+                return rejectScheduleByDoctor(id, null, reason);
+        }
+
+        public Schedule rejectScheduleByDoctor(String id, String doctorEmail, String reason) {
+                if (id == null || id.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Schedule ID is required.");
+                }
+
+                Schedule schedule = scheduleRepository.findById(id.trim())
                                 .orElseThrow(() -> new RuntimeException("Schedule not found with id: " + id));
+
+                if (doctorEmail != null && !doctorEmail.trim().isEmpty() && doctorRepository != null) {
+                        Doctor doctor = doctorRepository.findByEmail(doctorEmail.trim().toLowerCase()).orElse(null);
+                        if (doctor != null && schedule.getDoctorId() != null && !schedule.getDoctorId().equals(doctor.getId())) {
+                                throw new SecurityException("Forbidden: You are not authorized to reject another doctor's schedule.");
+                        }
+                }
+
+                if (!"PENDING".equalsIgnoreCase(schedule.getStatus())) {
+                        throw new IllegalStateException("Only pending schedules can be rejected. Current status: " + schedule.getStatus());
+                }
 
                 if (isSchedulePast(schedule.getDate(), schedule.getEndTime())) {
                         throw new IllegalArgumentException("Cannot reject an expired schedule.");
                 }
 
+                if (hasActiveBookings(schedule.getId())) {
+                        throw new IllegalStateException("Cannot reject a schedule with active bookings.");
+                }
+
                 schedule.setStatus("REJECTED");
+                if (reason != null && !reason.trim().isEmpty()) {
+                        schedule.setRejectionReason(reason.trim());
+                }
                 Schedule saved = scheduleRepository.save(schedule);
 
                 try {
@@ -339,9 +388,12 @@ public class ScheduleService {
                                 note.setDate(saved.getDate());
                                 note.setTime(saved.getStartTime() + " - " + saved.getEndTime());
                                 note.setTitle("Schedule Declined");
+                                String reasonSuffix = (saved.getRejectionReason() != null && !saved.getRejectionReason().isBlank())
+                                                ? " Reason: " + saved.getRejectionReason()
+                                                : "";
                                 note.setMessage(doctorName.trim() + " declined the " + saved.getType()
                                                 + " schedule for " + saved.getDate() + " (" + saved.getStartTime()
-                                                + " - " + saved.getEndTime() + ").");
+                                                + " - " + saved.getEndTime() + ")." + reasonSuffix);
                                 note.setCreatedAt(LocalDateTime.now());
                                 note.setRead(false);
                                 notificationRepository.save(note);
@@ -350,11 +402,17 @@ public class ScheduleService {
                         System.err.println("Failed to send reject schedule notification: " + e.getMessage());
                 }
 
+                // Note: Rejection must NOT trigger appointment cancellation, refund processing, or patient cancellation emails.
+
                 return saved;
         }
 
         // ----------------- CANCEL SCHEDULE -----------------
         public Schedule cancelSchedule(String id) {
+                return cancelSchedule(id, "Cancelled by doctor");
+        }
+
+        public Schedule cancelSchedule(String id, String reason) {
 
                 try {
 
@@ -372,8 +430,8 @@ public class ScheduleService {
 
                         if (!"ACCEPTED".equalsIgnoreCase(schedule.getStatus())) {
 
-                                throw new RuntimeException(
-                                                "Only accepted schedules can be cancelled.");
+                                throw new IllegalStateException(
+                                                "Only accepted schedules can be cancelled. Current status: " + schedule.getStatus());
                         }
 
                         // =========================================================
@@ -386,15 +444,7 @@ public class ScheduleService {
                                                 "Cannot cancel an expired schedule.");
                         }
 
-                        // =========================================================
-                        // 2.2. SCHEDULE WITH BOOKED PATIENTS CANNOT BE CANCELLED
-                        // =========================================================
-
-                        if (hasActiveBookings(schedule.getId())) {
-
-                                throw new IllegalArgumentException(
-                                                "Cannot cancel this schedule because patients have already booked appointments.");
-                        }
+                        // Note: If schedule has active bookings, they will be cascade cancelled with 100% refund.
 
                         // =========================================================
                         // 3. GET DOCTOR INFORMATION
@@ -447,6 +497,9 @@ public class ScheduleService {
                         // =========================================================
 
                         schedule.setStatus("CANCELLED");
+                        if (reason != null && !reason.trim().isEmpty()) {
+                                schedule.setCancellationReason(reason.trim());
+                        }
 
                         Schedule updatedSchedule = scheduleRepository.save(schedule);
 
@@ -620,19 +673,25 @@ public class ScheduleService {
                                 // 10. CANCEL PATIENT APPOINTMENT
                                 // =========================================================
 
+                                if ("CANCELLED".equalsIgnoreCase(appt.getStatus())) {
+                                        continue;
+                                }
+
                                 appt.setStatus("CANCELLED");
                                 appt.setCancelledBy("DOCTOR");
-                                appt.setRefundReason("Doctor cancelled schedule: " + doctorName);
+                                appt.setRefundReason(reason != null && !reason.trim().isEmpty() ? reason.trim() : "Doctor cancelled schedule: " + doctorName);
                                 if (isPaid) {
                                         double originalPaid = appt.getAmount() > 0 ? appt.getAmount() : 1000.00;
                                         appt.setRefundPercentage(100.0);
                                         appt.setRefundAmount(originalPaid);
-                                        appt.setRefundStatus("REFUNDED");
-                                        appt.setRefundedAt(java.time.LocalDateTime.now());
+                                        appt.setRefundStatus("AWAITING_BANK_DETAILS");
+                                        appt.setRefundedAt(null);
                                 } else {
+                                        appt.setPaymentStatus("FAILED");
                                         appt.setRefundPercentage(0.0);
                                         appt.setRefundAmount(0.0);
-                                        appt.setRefundStatus(null);
+                                        appt.setRefundStatus("NOT_APPLICABLE");
+                                        appt.setRefundedAt(null);
                                 }
 
                                 appointmentRepository.save(appt);
@@ -829,14 +888,17 @@ public class ScheduleService {
 
                                         try {
 
-                                                emailService.sendAppointmentCancellationEmail(
+                                                emailService.sendDoctorScheduleCancellationEmail(
                                                                 email,
                                                                 patient.getFirstName(),
                                                                 doctorName,
+                                                                appt.getAppointmentNumber(),
                                                                 appointmentType,
                                                                 schedule.getDate(),
                                                                 schedule.getStartTime(),
                                                                 hospitalName,
+                                                                appt.getRefundReason(),
+                                                                appt.getAmount(),
                                                                 isPaid);
 
                                                 System.out.println(
@@ -875,7 +937,7 @@ public class ScheduleService {
 
                         return updatedSchedule;
 
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException | IllegalStateException e) {
 
                         throw e;
 
@@ -885,6 +947,172 @@ public class ScheduleService {
                                         "Error while cancelling schedule: "
                                                         + e.getMessage());
                 }
+        }
+
+        public Schedule cancelScheduleByDoctor(String scheduleId, String doctorEmail, String reason) {
+                if (scheduleId == null || scheduleId.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Schedule ID is required.");
+                }
+
+                Schedule schedule = scheduleRepository.findById(scheduleId.trim())
+                                .orElseThrow(() -> new IllegalArgumentException("Schedule not found with id: " + scheduleId));
+
+                if (doctorEmail != null && !doctorEmail.trim().isEmpty()) {
+                        Doctor doctor = doctorRepository.findByEmail(doctorEmail.trim().toLowerCase())
+                                        .orElse(null);
+                        if (doctor != null && schedule.getDoctorId() != null && !schedule.getDoctorId().equals(doctor.getId())) {
+                                throw new SecurityException("Forbidden: You are not authorized to cancel another doctor's schedule.");
+                        }
+                }
+
+                return cancelSchedule(scheduleId, (reason != null && !reason.trim().isEmpty()) ? reason.trim() : "Cancelled by doctor");
+        }
+
+        public Schedule cancelScheduleByHospital(String scheduleId, String hospitalEmail, String reason) {
+                if (scheduleId == null || scheduleId.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Schedule ID is required.");
+                }
+                if (hospitalEmail == null || hospitalEmail.trim().isEmpty()) {
+                        throw new SecurityException("Authentication is required.");
+                }
+
+                Hospital hospital = hospitalRepository.findByEmail(hospitalEmail.trim().toLowerCase())
+                                .orElseThrow(() -> new SecurityException("Hospital profile not found."));
+
+                Schedule schedule = scheduleRepository.findById(scheduleId.trim())
+                                .orElseThrow(() -> new IllegalArgumentException("Schedule not found with id: " + scheduleId));
+
+                if (schedule.getHospitalId() == null || !schedule.getHospitalId().equals(hospital.getId())) {
+                        throw new SecurityException("Forbidden: You cannot cancel a schedule belonging to another hospital.");
+                }
+
+                if ("CANCELLED".equalsIgnoreCase(schedule.getStatus())) {
+                        throw new IllegalArgumentException("This schedule is already cancelled.");
+                }
+
+                if ("REJECTED".equalsIgnoreCase(schedule.getStatus())) {
+                        throw new IllegalArgumentException("Cannot cancel a rejected schedule.");
+                }
+
+                if (isSchedulePast(schedule.getDate(), schedule.getEndTime())) {
+                        throw new IllegalArgumentException("Cannot cancel an expired schedule.");
+                }
+
+                String cancelReason = (reason != null && !reason.trim().isEmpty())
+                                ? reason.trim()
+                                : "Hospital cancelled schedule: " + hospital.getName();
+
+                Doctor doctor = doctorRepository.findById(schedule.getDoctorId()).orElse(null);
+                String doctorName = doctor != null ? "Dr. " + (doctor.getFirstName() != null ? doctor.getFirstName() : "") + " " + (doctor.getLastName() != null ? doctor.getLastName() : "") : "Doctor";
+                doctorName = doctorName.trim();
+                String hospitalName = hospital.getName();
+                boolean isVideo = "VIDEO".equalsIgnoreCase(schedule.getType());
+                String appointmentType = isVideo ? "video consultation" : "appointment";
+
+                schedule.setStatus("CANCELLED");
+                schedule.setCancellationReason(cancelReason);
+                Schedule updatedSchedule = scheduleRepository.save(schedule);
+
+                // Notify Doctor
+                try {
+                        if (schedule.getDoctorId() != null && notificationRepository != null) {
+                                Notification doctorNotification = new Notification();
+                                doctorNotification.setUserId(schedule.getDoctorId());
+                                doctorNotification.setDoctorId(schedule.getDoctorId());
+                                doctorNotification.setDoctorName(doctorName);
+                                doctorNotification.setHospitalId(schedule.getHospitalId());
+                                doctorNotification.setScheduleId(schedule.getId());
+                                doctorNotification.setScheduleType(schedule.getType());
+                                doctorNotification.setDate(schedule.getDate());
+                                doctorNotification.setTime(schedule.getStartTime() + " - " + schedule.getEndTime());
+                                doctorNotification.setTitle("Schedule Cancelled by Hospital");
+                                doctorNotification.setMessage(hospitalName + " has cancelled your schedule on " + schedule.getDate() + 
+                                                " (" + schedule.getStartTime() + " - " + schedule.getEndTime() + "). Reason: " + cancelReason);
+                                doctorNotification.setRead(false);
+                                doctorNotification.setCreatedAt(LocalDateTime.now());
+                                notificationRepository.save(doctorNotification);
+                        }
+                } catch (Exception e) {
+                        System.err.println("Failed to notify doctor: " + e.getMessage());
+                }
+
+                // Cascade cancel all appointments for this schedule
+                List<Appointment> appointments = appointmentRepository.findByScheduleId(schedule.getId());
+                for (Appointment appt : appointments) {
+                        if ("CANCELLED".equalsIgnoreCase(appt.getStatus())) {
+                                continue;
+                        }
+
+                        boolean isPaid = appt.isPaid() || "PAID".equalsIgnoreCase(appt.getPaymentStatus());
+                        appt.setStatus("CANCELLED");
+                        appt.setCancelledBy("HOSPITAL");
+                        appt.setRefundReason(cancelReason);
+
+                        if (isPaid) {
+                                double originalPaid = appt.getAmount() > 0 ? appt.getAmount() : 1000.00;
+                                appt.setRefundPercentage(100.0);
+                                appt.setRefundAmount(originalPaid);
+                                appt.setRefundStatus("AWAITING_BANK_DETAILS");
+                                appt.setRefundedAt(null);
+                        } else {
+                                appt.setPaymentStatus("FAILED");
+                                appt.setRefundPercentage(0.0);
+                                appt.setRefundAmount(0.0);
+                                appt.setRefundStatus("NOT_APPLICABLE");
+                                appt.setRefundedAt(null);
+                        }
+
+                        appointmentRepository.save(appt);
+
+                        Patient patient = patientRepository.findById(appt.getPatientId()).orElse(null);
+                        if (patient == null) continue;
+
+                        // In-app notification to patient
+                        try {
+                                if (notificationRepository != null) {
+                                        Notification patientNotification = new Notification();
+                                        patientNotification.setUserId(appt.getPatientId());
+                                        patientNotification.setHospitalId(schedule.getHospitalId());
+                                        patientNotification.setScheduleId(schedule.getId());
+                                        patientNotification.setScheduleType(schedule.getType());
+                                        patientNotification.setDate(schedule.getDate());
+                                        patientNotification.setTime(schedule.getStartTime() + " - " + schedule.getEndTime());
+                                        patientNotification.setDoctorId(schedule.getDoctorId());
+                                        patientNotification.setDoctorName(doctorName);
+                                        patientNotification.setTitle("Schedule Cancelled by Hospital");
+                                        patientNotification.setMessage("Your " + appointmentType + " with " + doctorName + " on " + schedule.getDate() + 
+                                                        " has been cancelled by " + hospitalName + ". Reason: " + cancelReason);
+                                        patientNotification.setRead(false);
+                                        patientNotification.setCreatedAt(LocalDateTime.now());
+                                        notificationRepository.save(patientNotification);
+                                }
+                        } catch (Exception e) {
+                                System.err.println("Failed to notify patient: " + e.getMessage());
+                        }
+
+                        // Email to patient
+                        if (patient.getEmail() != null && !patient.getEmail().trim().isEmpty() && emailService != null) {
+                                try {
+                                        emailService.sendHospitalScheduleCancellationEmail(
+                                                        patient.getEmail(),
+                                                        patient.getFirstName(),
+                                                        doctorName,
+                                                        appt.getAppointmentNumber(),
+                                                        appointmentType,
+                                                        schedule.getDate(),
+                                                        schedule.getStartTime(),
+                                                        hospitalName,
+                                                        cancelReason,
+                                                        appt.getAmount(),
+                                                        isPaid
+                                        );
+                                } catch (Exception e) {
+                                        System.err.println("Failed to send hospital schedule cancellation email: " + e.getMessage());
+                                }
+                        }
+                }
+
+                return updatedSchedule;
         }
 
         private boolean hasActiveBookings(String scheduleId) {

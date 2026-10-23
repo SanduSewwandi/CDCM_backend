@@ -209,7 +209,280 @@ public class EmailService {
         }
     }
 
-    // Appointment cancellation email
+    // -------------------------------------------------------------
+    // DISTINCT APPOINTMENT & SCHEDULE CANCELLATION EMAILS
+    // -------------------------------------------------------------
+
+    public void sendPatientCancellationEmail(
+            String to,
+            String patientName,
+            String doctorName,
+            String appointmentNumber,
+            String appointmentType,
+            String date,
+            String time,
+            String hospitalName,
+            String reason,
+            double originalAmount,
+            double refundPercentage,
+            double refundAmount,
+            boolean isRefundEligible) {
+
+        try {
+            String subject = isRefundEligible
+                    ? "Appointment Cancelled - Refund Action Required"
+                    : "Appointment Cancelled";
+
+            String greeting = "Dear " + (patientName != null && !patientName.isBlank() ? patientName : "Patient") + ",\n\n";
+            String apptNumStr = appointmentNumber != null ? appointmentNumber : "—";
+            String reasonStr = (reason != null && !reason.isBlank()) ? reason : "Cancelled by patient";
+
+            StringBuilder text = new StringBuilder();
+            text.append(greeting);
+            text.append("Your appointment #").append(apptNumStr).append(" has been cancelled.\n\n");
+            text.append("Details:\n");
+            text.append("Doctor: ").append(doctorName).append("\n");
+            text.append("Hospital: ").append(hospitalName).append("\n");
+            text.append("Date: ").append(date).append("\n");
+            text.append("Time: ").append(time).append("\n");
+            text.append("Reason: ").append(reasonStr).append("\n\n");
+
+            if (isRefundEligible && refundAmount > 0) {
+                text.append("Refund Details:\n");
+                text.append("Original Payment: LKR ").append(String.format(java.util.Locale.US, "%.2f", originalAmount)).append("\n");
+                text.append("Applicable Refund: ").append(refundPercentage).append("%\n");
+                text.append("Refund Amount Due: LKR ").append(String.format(java.util.Locale.US, "%.2f", refundAmount)).append("\n\n");
+                text.append("Action Required:\n");
+                text.append("Please log in to the CDCM Patient Portal (My Appointments -> Previous tab) to provide your bank account details securely. ");
+                text.append("Once submitted, the hospital finance team will execute the bank transfer manually.\n\n");
+                text.append("Note: Refunds are processed manually by the hospital and are not completed merely because the appointment is cancelled.\n\n");
+            } else {
+                text.append("According to the cancellation refund policy, no refund is applicable for this cancellation.\n\n");
+            }
+            text.append("Thank you,\nCDCM System");
+
+            String htmlRefundSection = "";
+            if (isRefundEligible && refundAmount > 0) {
+                htmlRefundSection = "<div style=\"background: #ecfdf5; border: 1px solid #a7f3d0; padding: 16px; border-radius: 8px; margin: 20px 0;\">"
+                        + "<h3 style=\"color: #065f46; margin-top: 0; font-size: 15px;\">Refund Information</h3>"
+                        + "<p style=\"margin: 4px 0; color: #047857;\"><strong>Original Payment:</strong> LKR " + String.format(java.util.Locale.US, "%.2f", originalAmount) + "</p>"
+                        + "<p style=\"margin: 4px 0; color: #047857;\"><strong>Refund Percentage:</strong> " + refundPercentage + "%</p>"
+                        + "<p style=\"margin: 4px 0; color: #047857;\"><strong>Refund Amount Due:</strong> LKR " + String.format(java.util.Locale.US, "%.2f", refundAmount) + "</p>"
+                        + "<div style=\"margin-top: 12px; padding: 10px; background: #ffffff; border-radius: 6px; border: 1px dashed #6ee7b7;\">"
+                        + "<p style=\"margin: 0; font-size: 13px; color: #065f46;\"><strong>Action Required:</strong> Please sign in to the CDCM Patient Portal, open <em>My Appointments</em>, and submit your bank account details under the <em>Previous</em> tab. The hospital will disburse your refund manually.</p>"
+                        + "</div>"
+                        + "<p style=\"font-size: 12px; color: #047857; margin-top: 8px; margin-bottom: 0;\">Note: Refunds are processed manually by hospital administration and are not instant.</p>"
+                        + "</div>";
+            } else {
+                htmlRefundSection = "<div style=\"background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px; border-radius: 6px; margin: 16px 0;\">"
+                        + "<p style=\"margin: 0; font-size: 13px; color: #64748b;\">Under the applicable hospital cancellation policy, no refund is due for this cancellation.</p>"
+                        + "</div>";
+            }
+
+            String html = "<div style=\"font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;\">"
+                    + "<h2 style=\"color: #dc2626; margin-top: 0;\">Appointment Cancelled</h2>"
+                    + "<p style=\"font-size: 15px; color: #475569;\">Dear <strong>" + escapeHtml(patientName) + "</strong>,</p>"
+                    + "<p style=\"font-size: 14px; color: #475569;\">Your appointment has been cancelled as requested.</p>"
+                    + "<div style=\"background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; margin: 16px 0;\">"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Appointment Number:</strong> " + escapeHtml(apptNumStr) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Doctor:</strong> " + escapeHtml(doctorName) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Hospital:</strong> " + escapeHtml(hospitalName) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Date & Time:</strong> " + escapeHtml(date) + " at " + escapeHtml(time) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Reason:</strong> " + escapeHtml(reasonStr) + "</p>"
+                    + "</div>"
+                    + htmlRefundSection
+                    + "<hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;\" />"
+                    + "<p style=\"font-size: 12px; color: #94a3b8; margin: 0;\">CDCM Healthcare System</p>"
+                    + "</div>";
+
+            sendEmail(to, subject, text.toString(), html);
+        } catch (Exception e) {
+            log.error("Failed to send patient cancellation email to [{}]: {}", to, e.getMessage());
+        }
+    }
+
+    public void sendDoctorScheduleCancellationEmail(
+            String to,
+            String patientName,
+            String doctorName,
+            String appointmentNumber,
+            String appointmentType,
+            String date,
+            String time,
+            String hospitalName,
+            String reason,
+            double originalAmount,
+            boolean isPaid) {
+
+        try {
+            String subject = "Shift Cancelled by Doctor - 100% Refund Information";
+            String greeting = "Dear " + (patientName != null && !patientName.isBlank() ? patientName : "Patient") + ",\n\n";
+            String apptNumStr = appointmentNumber != null ? appointmentNumber : "—";
+            String reasonStr = (reason != null && !reason.isBlank()) ? reason : "Doctor unavailable";
+
+            StringBuilder text = new StringBuilder();
+            text.append(greeting);
+            text.append("We regret to inform you that Dr. ").append(doctorName)
+                    .append(" has cancelled their scheduled shift on ").append(date)
+                    .append(" at ").append(hospitalName).append(".\n\n");
+            text.append("Reason: ").append(reasonStr).append("\n\n");
+
+            if (isPaid) {
+                text.append("Because this cancellation was initiated by the doctor, you are eligible for a 100% FULL REFUND of LKR ")
+                        .append(String.format(java.util.Locale.US, "%.2f", originalAmount)).append(".\n\n");
+                text.append("Action Required:\n");
+                text.append("Please log in to your CDCM Patient Portal (My Appointments -> Previous tab) to securely submit your bank account details. ");
+                text.append("The hospital will execute your refund directly via manual bank transfer.\n\n");
+                text.append("Refunds are processed manually and are not instant upon cancellation.\n\n");
+            } else {
+                text.append("No payment had been charged for this appointment.\n\n");
+            }
+            text.append("We apologize for the inconvenience.\n\nThank you,\nCDCM System");
+
+            String htmlRefundSection = "";
+            if (isPaid) {
+                htmlRefundSection = "<div style=\"background: #ecfdf5; border: 1px solid #a7f3d0; padding: 16px; border-radius: 8px; margin: 20px 0;\">"
+                        + "<h3 style=\"color: #065f46; margin-top: 0; font-size: 15px;\">100% Full Refund Eligible</h3>"
+                        + "<p style=\"margin: 4px 0; color: #047857;\"><strong>Refund Amount:</strong> LKR " + String.format(java.util.Locale.US, "%.2f", originalAmount) + " (100%)</p>"
+                        + "<div style=\"margin-top: 12px; padding: 10px; background: #ffffff; border-radius: 6px; border: 1px dashed #6ee7b7;\">"
+                        + "<p style=\"margin: 0; font-size: 13px; color: #065f46;\"><strong>Action Required:</strong> Please sign in to the CDCM Patient Portal, open <em>My Appointments</em>, and provide your bank account details under the <em>Previous</em> tab so the hospital finance team can process your refund.</p>"
+                        + "</div>"
+                        + "<p style=\"font-size: 12px; color: #047857; margin-top: 8px; margin-bottom: 0;\">Note: Refunds are processed manually by the hospital finance team.</p>"
+                        + "</div>";
+            }
+
+            String html = "<div style=\"font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; border: 1px solid #fecaca; border-radius: 8px; background-color: #ffffff;\">"
+                    + "<h2 style=\"color: #dc2626; margin-top: 0;\">Schedule Cancelled by Doctor</h2>"
+                    + "<p style=\"font-size: 15px; color: #475569;\">Dear <strong>" + escapeHtml(patientName) + "</strong>,</p>"
+                    + "<p style=\"font-size: 14px; color: #475569;\">We regret to inform you that <strong>Dr. " + escapeHtml(doctorName) + "</strong> has cancelled their scheduled shift on <strong>" + escapeHtml(date) + "</strong> at <strong>" + escapeHtml(hospitalName) + "</strong>.</p>"
+                    + "<div style=\"background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; margin: 16px 0;\">"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Appointment:</strong> #" + escapeHtml(apptNumStr) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Time:</strong> " + escapeHtml(time) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Reason:</strong> " + escapeHtml(reasonStr) + "</p>"
+                    + "</div>"
+                    + htmlRefundSection
+                    + "<hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;\" />"
+                    + "<p style=\"font-size: 12px; color: #94a3b8; margin: 0;\">CDCM Healthcare System</p>"
+                    + "</div>";
+
+            sendEmail(to, subject, text.toString(), html);
+        } catch (Exception e) {
+            log.error("Failed to send doctor schedule cancellation email to [{}]: {}", to, e.getMessage());
+        }
+    }
+
+    public void sendHospitalScheduleCancellationEmail(
+            String to,
+            String patientName,
+            String doctorName,
+            String appointmentNumber,
+            String appointmentType,
+            String date,
+            String time,
+            String hospitalName,
+            String reason,
+            double originalAmount,
+            boolean isPaid) {
+
+        try {
+            String subject = "Schedule Cancelled by Hospital - 100% Refund Information";
+            String greeting = "Dear " + (patientName != null && !patientName.isBlank() ? patientName : "Patient") + ",\n\n";
+            String apptNumStr = appointmentNumber != null ? appointmentNumber : "—";
+            String reasonStr = (reason != null && !reason.isBlank()) ? reason : "Hospital operational requirements";
+
+            StringBuilder text = new StringBuilder();
+            text.append(greeting);
+            text.append("We regret to inform you that ").append(hospitalName)
+                    .append(" has cancelled the scheduled shift for Dr. ").append(doctorName)
+                    .append(" on ").append(date).append(".\n\n");
+            text.append("Reason: ").append(reasonStr).append("\n\n");
+
+            if (isPaid) {
+                text.append("Because this cancellation was initiated by the hospital, you are eligible for a 100% FULL REFUND of LKR ")
+                        .append(String.format(java.util.Locale.US, "%.2f", originalAmount)).append(".\n\n");
+                text.append("Action Required:\n");
+                text.append("Please log in to your CDCM Patient Portal (My Appointments -> Previous tab) to securely submit your bank account details. ");
+                text.append("The hospital will execute your refund directly via manual bank transfer.\n\n");
+                text.append("Refunds are processed manually and are not instant upon cancellation.\n\n");
+            } else {
+                text.append("No payment had been charged for this appointment.\n\n");
+            }
+            text.append("We apologize for the inconvenience.\n\nThank you,\nCDCM System");
+
+            String htmlRefundSection = "";
+            if (isPaid) {
+                htmlRefundSection = "<div style=\"background: #ecfdf5; border: 1px solid #a7f3d0; padding: 16px; border-radius: 8px; margin: 20px 0;\">"
+                        + "<h3 style=\"color: #065f46; margin-top: 0; font-size: 15px;\">100% Full Refund Eligible</h3>"
+                        + "<p style=\"margin: 4px 0; color: #047857;\"><strong>Refund Amount:</strong> LKR " + String.format(java.util.Locale.US, "%.2f", originalAmount) + " (100%)</p>"
+                        + "<div style=\"margin-top: 12px; padding: 10px; background: #ffffff; border-radius: 6px; border: 1px dashed #6ee7b7;\">"
+                        + "<p style=\"margin: 0; font-size: 13px; color: #065f46;\"><strong>Action Required:</strong> Please sign in to the CDCM Patient Portal, open <em>My Appointments</em>, and provide your bank account details under the <em>Previous</em> tab so the hospital finance team can process your refund.</p>"
+                        + "</div>"
+                        + "<p style=\"font-size: 12px; color: #047857; margin-top: 8px; margin-bottom: 0;\">Note: Refunds are processed manually by the hospital finance team.</p>"
+                        + "</div>";
+            }
+
+            String html = "<div style=\"font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; border: 1px solid #fecaca; border-radius: 8px; background-color: #ffffff;\">"
+                    + "<h2 style=\"color: #dc2626; margin-top: 0;\">Schedule Cancelled by Hospital</h2>"
+                    + "<p style=\"font-size: 15px; color: #475569;\">Dear <strong>" + escapeHtml(patientName) + "</strong>,</p>"
+                    + "<p style=\"font-size: 14px; color: #475569;\">We regret to inform you that <strong>" + escapeHtml(hospitalName) + "</strong> has cancelled the scheduled shift for <strong>Dr. " + escapeHtml(doctorName) + "</strong> on <strong>" + escapeHtml(date) + "</strong>.</p>"
+                    + "<div style=\"background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; margin: 16px 0;\">"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Appointment:</strong> #" + escapeHtml(apptNumStr) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Time:</strong> " + escapeHtml(time) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Reason:</strong> " + escapeHtml(reasonStr) + "</p>"
+                    + "</div>"
+                    + htmlRefundSection
+                    + "<hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;\" />"
+                    + "<p style=\"font-size: 12px; color: #94a3b8; margin: 0;\">CDCM Healthcare System</p>"
+                    + "</div>";
+
+            sendEmail(to, subject, text.toString(), html);
+        } catch (Exception e) {
+            log.error("Failed to send hospital schedule cancellation email to [{}]: {}", to, e.getMessage());
+        }
+    }
+
+    public void sendRefundCompletedEmail(
+            String to,
+            String patientName,
+            String appointmentNumber,
+            double refundAmount,
+            String transactionRef,
+            String hospitalName) {
+
+        try {
+            String subject = "Refund Processed Successfully - Appointment #" + (appointmentNumber != null ? appointmentNumber : "");
+            String greeting = "Dear " + (patientName != null && !patientName.isBlank() ? patientName : "Patient") + ",\n\n";
+            String refStr = (transactionRef != null && !transactionRef.isBlank()) ? transactionRef : "N/A";
+
+            String text = greeting +
+                    "Your refund for appointment #" + (appointmentNumber != null ? appointmentNumber : "") +
+                    " has been successfully processed and transferred by " + hospitalName + ".\n\n" +
+                    "Refund Amount: LKR " + String.format(java.util.Locale.US, "%.2f", refundAmount) + "\n" +
+                    "Transaction Reference: " + refStr + "\n\n" +
+                    "Please check your bank statement. If you have any inquiries, please contact " + hospitalName + ".\n\n" +
+                    "Thank you,\nCDCM System";
+
+            String html = "<div style=\"font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; border: 1px solid #a7f3d0; border-radius: 8px; background-color: #ffffff;\">"
+                    + "<h2 style=\"color: #059669; margin-top: 0;\">Refund Transfer Completed</h2>"
+                    + "<p style=\"font-size: 15px; color: #475569;\">Dear <strong>" + escapeHtml(patientName) + "</strong>,</p>"
+                    + "<p style=\"font-size: 14px; color: #475569;\">Your refund has been successfully completed and transferred to your bank account by <strong>" + escapeHtml(hospitalName) + "</strong>.</p>"
+                    + "<div style=\"background: #ecfdf5; border: 1px solid #a7f3d0; padding: 16px; border-radius: 6px; margin: 16px 0;\">"
+                    + "<p style=\"margin: 4px 0; color: #065f46;\"><strong>Appointment Number:</strong> " + escapeHtml(appointmentNumber) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #065f46;\"><strong>Refund Amount:</strong> LKR " + String.format(java.util.Locale.US, "%.2f", refundAmount) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #065f46;\"><strong>Transaction Reference:</strong> " + escapeHtml(refStr) + "</p>"
+                    + "</div>"
+                    + "<p style=\"font-size: 13px; color: #64748b;\">Please check your bank statement. Depending on your bank, it may take 1-2 business days to reflect.</p>"
+                    + "<hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;\" />"
+                    + "<p style=\"font-size: 12px; color: #94a3b8; margin: 0;\">CDCM Healthcare System</p>"
+                    + "</div>";
+
+            sendEmail(to, subject, text, html);
+        } catch (Exception e) {
+            log.error("Failed to send refund completion email to [{}]: {}", to, e.getMessage());
+        }
+    }
+
+    // Appointment cancellation email (legacy / fallback)
     public void sendAppointmentCancellationEmail(
             String to,
             String patientName,
@@ -221,81 +494,9 @@ public class EmailService {
             boolean isPaid) {
 
         try {
-            String subject;
-            String text;
-            String html;
-
-            String greeting = "Dear " + (patientName != null && !patientName.isBlank() ? patientName : "Patient")
-                    + ",\n\n";
-            String details = "Appointment Details:\n" +
-                    "Doctor: " + doctorName + "\n" +
-                    "Date: " + date + "\n" +
-                    "Time: " + time + "\n" +
-                    "Type: " + appointmentType + "\n\n";
-
-            if (isPaid) {
-                subject = "Appointment Cancelled - Payment Received";
-                text = greeting +
-                        "We regret to inform you that your " + appointmentType + " appointment with " +
-                        doctorName + " has been cancelled by " + hospitalName + ".\n\n" +
-                        details +
-                        "Your payment has already been received for this appointment.\n" +
-                        "Please contact " + hospitalName + " regarding the refund process.\n\n" +
-                        "We apologize for any inconvenience caused.\n\n" +
-                        "Thank you,\nCDCM System";
-
-                html = "<div style=\"font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; border: 1px solid #fecaca; border-radius: 8px; background-color: #ffffff;\">"
-                        + "<h2 style=\"color: #dc2626; margin-top: 0;\">Appointment Cancelled</h2>"
-                        + "<p style=\"font-size: 15px; color: #475569;\">Dear <strong>" + escapeHtml(patientName)
-                        + "</strong>,</p>"
-                        + "<p style=\"font-size: 15px; color: #475569;\">We regret to inform you that your <strong>"
-                        + escapeHtml(appointmentType) + "</strong> appointment with <strong>" + escapeHtml(doctorName)
-                        + "</strong> has been cancelled by <strong>" + escapeHtml(hospitalName) + "</strong>.</p>"
-                        + "<div style=\"background: #fef2f2; border: 1px solid #fee2e2; padding: 16px; border-radius: 6px; margin: 20px 0;\">"
-                        + "<p style=\"margin: 4px 0;\"><strong>Doctor:</strong> " + escapeHtml(doctorName) + "</p>"
-                        + "<p style=\"margin: 4px 0;\"><strong>Date:</strong> " + escapeHtml(date) + "</p>"
-                        + "<p style=\"margin: 4px 0;\"><strong>Time:</strong> " + escapeHtml(time) + "</p>"
-                        + "<p style=\"margin: 4px 0;\"><strong>Type:</strong> " + escapeHtml(appointmentType) + "</p>"
-                        + "</div>"
-                        + "<p style=\"font-size: 14px; color: #991b1b; font-weight: bold;\">Your payment has already been received for this appointment. Please contact "
-                        + escapeHtml(hospitalName) + " regarding the refund process.</p>"
-                        + "<hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;\" />"
-                        + "<p style=\"font-size: 12px; color: #94a3b8; margin: 0;\">CDCM Healthcare System</p>"
-                        + "</div>";
-            } else {
-                subject = "Appointment Cancelled";
-                text = greeting +
-                        "We regret to inform you that your " + appointmentType + " appointment with " +
-                        doctorName + " has been cancelled by " + hospitalName + ".\n\n" +
-                        details +
-                        "Please contact " + hospitalName + " for more information.\n\n" +
-                        "We apologize for any inconvenience caused.\n\n" +
-                        "Thank you,\nCDCM System";
-
-                html = "<div style=\"font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; border: 1px solid #fed7aa; border-radius: 8px; background-color: #ffffff;\">"
-                        + "<h2 style=\"color: #ea580c; margin-top: 0;\">Appointment Cancelled</h2>"
-                        + "<p style=\"font-size: 15px; color: #475569;\">Dear <strong>" + escapeHtml(patientName)
-                        + "</strong>,</p>"
-                        + "<p style=\"font-size: 15px; color: #475569;\">We regret to inform you that your <strong>"
-                        + escapeHtml(appointmentType) + "</strong> appointment with <strong>" + escapeHtml(doctorName)
-                        + "</strong> has been cancelled by <strong>" + escapeHtml(hospitalName) + "</strong>.</p>"
-                        + "<div style=\"background: #fff7ed; border: 1px solid #ffedd5; padding: 16px; border-radius: 6px; margin: 20px 0;\">"
-                        + "<p style=\"margin: 4px 0;\"><strong>Doctor:</strong> " + escapeHtml(doctorName) + "</p>"
-                        + "<p style=\"margin: 4px 0;\"><strong>Date:</strong> " + escapeHtml(date) + "</p>"
-                        + "<p style=\"margin: 4px 0;\"><strong>Time:</strong> " + escapeHtml(time) + "</p>"
-                        + "<p style=\"margin: 4px 0;\"><strong>Type:</strong> " + escapeHtml(appointmentType) + "</p>"
-                        + "</div>"
-                        + "<p style=\"font-size: 14px; color: #475569;\">Please contact " + escapeHtml(hospitalName)
-                        + " for more information.</p>"
-                        + "<hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;\" />"
-                        + "<p style=\"font-size: 12px; color: #94a3b8; margin: 0;\">CDCM Healthcare System</p>"
-                        + "</div>";
-            }
-
-            sendEmail(to, subject, text, html);
+            sendDoctorScheduleCancellationEmail(to, patientName, doctorName, null, appointmentType, date, time, hospitalName, "Cancelled", 0.0, isPaid);
         } catch (Exception e) {
             log.error("Failed to send appointment cancellation email to [{}]: {}", to, e.getMessage());
-            throw new RuntimeException("Failed to send appointment cancellation email: " + e.getMessage(), e);
         }
     }
 
