@@ -3,9 +3,12 @@ package com.example.demo.controller;
 import com.example.demo.dto.ScheduleRequest;
 import com.example.demo.model.Schedule;
 import com.example.demo.service.ScheduleService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/schedules")
@@ -56,23 +59,80 @@ public class ScheduleController {
     // ----------------- ACCEPT / REJECT SCHEDULE -----------------
 
     @PutMapping("/accept/{id}")
-    public Schedule acceptSchedule(@PathVariable String id) {
-        return scheduleService.acceptSchedule(id);
+    public ResponseEntity<?> acceptSchedule(@PathVariable String id, Principal principal) {
+        try {
+            String doctorEmail = principal != null ? principal.getName() : null;
+            Schedule accepted = scheduleService.acceptScheduleByDoctor(id, doctorEmail);
+            return ResponseEntity.ok(accepted);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
     }
 
     @PutMapping("/reject/{id}")
-    public Schedule rejectSchedule(@PathVariable String id) {
-        return scheduleService.rejectSchedule(id);
+    public ResponseEntity<?> rejectSchedule(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, String> body,
+            Principal principal) {
+        try {
+            String reason = body != null ? body.get("reason") : null;
+            String doctorEmail = principal != null ? principal.getName() : null;
+            Schedule rejected = scheduleService.rejectScheduleByDoctor(id, doctorEmail, reason);
+            return ResponseEntity.ok(rejected);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
     }
 
-    // ----------------- CANCEL SCHEDULE -----------------
+    // ----------------- DOCTOR CANCEL SCHEDULE -----------------
 
     @PutMapping("/cancel/{id}")
-    public Schedule cancelSchedule(@PathVariable String id) {
-        System.out.println(
-                "Controller hit: cancel schedule with id = " + id
-        );
+    public ResponseEntity<?> cancelSchedule(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, String> body,
+            Principal principal) {
+        try {
+            String reason = body != null ? body.get("reason") : null;
+            String doctorEmail = principal != null ? principal.getName() : null;
+            Schedule cancelled = scheduleService.cancelScheduleByDoctor(id, doctorEmail, reason);
+            return ResponseEntity.ok(cancelled);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
 
-        return scheduleService.cancelSchedule(id);
+    // ----------------- HOSPITAL CANCEL SCHEDULE -----------------
+
+    @PutMapping("/hospital-cancel/{id}")
+    public ResponseEntity<?> hospitalCancelSchedule(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, String> body,
+            Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Authentication required"));
+        }
+        try {
+            String reason = body != null ? body.get("reason") : null;
+            Schedule cancelled = scheduleService.cancelScheduleByHospital(id, principal.getName(), reason);
+            return ResponseEntity.ok(cancelled);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
     }
 }

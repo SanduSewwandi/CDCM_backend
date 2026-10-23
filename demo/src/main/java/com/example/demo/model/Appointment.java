@@ -30,13 +30,20 @@ public class Appointment {
     private boolean isPaid = false;
     private LocalDateTime paidAt;
 
-    // --- REFUND AUDIT FIELDS ---
+    // --- REFUND AUDIT & BANK DETAILS FIELDS ---
     private Double refundPercentage;
     private Double refundAmount;
-    private String refundStatus; // e.g. "REFUNDED"
+    private String refundStatus; // e.g. "AWAITING_BANK_DETAILS", "AWAITING_PROCESSING", "REFUNDED", "NOT_APPLICABLE"
     private String cancelledBy;  // "PATIENT", "DOCTOR", "HOSPITAL", "SYSTEM"
     private String refundReason;
     private LocalDateTime refundedAt;
+    private String bankAccountHolderName;
+    private String bankName;
+    private String bankBranchName;
+    private String bankAccountNumber;
+    private LocalDateTime bankDetailsSubmittedAt;
+    private String refundTransactionRef;
+    private String refundConfirmedBy;
 
     // --- MEDICAL HISTORY OTP ACCESS FIELDS ---
     private String medicalHistoryOtpHash;
@@ -218,5 +225,72 @@ public class Appointment {
 
     public void setRefundedAt(LocalDateTime refundedAt) {
         this.refundedAt = refundedAt;
+    }
+
+    public String getBankAccountHolderName() {
+        return bankAccountHolderName;
+    }
+
+    public void setBankAccountHolderName(String bankAccountHolderName) {
+        this.bankAccountHolderName = bankAccountHolderName;
+    }
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public void setBankName(String bankName) {
+        this.bankName = bankName;
+    }
+
+    public String getBankBranchName() {
+        return bankBranchName;
+    }
+
+    public void setBankBranchName(String bankBranchName) {
+        this.bankBranchName = bankBranchName;
+    }
+
+    public String getBankAccountNumber() {
+        return bankAccountNumber;
+    }
+
+    public void setBankAccountNumber(String bankAccountNumber) {
+        this.bankAccountNumber = bankAccountNumber;
+    }
+
+    public LocalDateTime getBankDetailsSubmittedAt() {
+        return bankDetailsSubmittedAt;
+    }
+
+    public void setBankDetailsSubmittedAt(LocalDateTime bankDetailsSubmittedAt) {
+        this.bankDetailsSubmittedAt = bankDetailsSubmittedAt;
+    }
+
+    public String getRefundTransactionRef() {
+        return refundTransactionRef;
+    }
+
+    public void setRefundTransactionRef(String refundTransactionRef) {
+        this.refundTransactionRef = refundTransactionRef;
+    }
+
+    public String getRefundConfirmedBy() {
+        return refundConfirmedBy;
+    }
+
+    public void setRefundConfirmedBy(String refundConfirmedBy) {
+        this.refundConfirmedBy = refundConfirmedBy;
+    }
+
+    public String getMaskedBankAccountNumber() {
+        if (bankAccountNumber == null || bankAccountNumber.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = bankAccountNumber.trim();
+        if (trimmed.length() <= 4) {
+            return "****" + trimmed;
+        }
+        return "****" + trimmed.substring(trimmed.length() - 4);
     }
 }

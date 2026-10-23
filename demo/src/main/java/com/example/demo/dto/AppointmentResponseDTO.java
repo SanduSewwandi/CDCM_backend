@@ -23,7 +23,7 @@ public class AppointmentResponseDTO {
     private boolean medicalHistoryAccessActive;
     private java.time.LocalDateTime medicalHistoryAccessExpiresAt;
 
-    // Refund audit fields
+    // Refund audit & bank details fields (masked, safe)
     private double amount;
     private Double refundPercentage;
     private Double refundAmount;
@@ -31,4 +31,13 @@ public class AppointmentResponseDTO {
     private String cancelledBy;
     private String refundReason;
     private java.time.LocalDateTime refundedAt;
+
+    private String scheduleId;
+    private String bankAccountHolderName;
+    private String bankName;
+    private String bankBranchName;
+    private String maskedBankAccountNumber;
+    private java.time.LocalDateTime bankDetailsSubmittedAt;
+    private String refundTransactionRef;
+    private String refundConfirmedBy;
 }
