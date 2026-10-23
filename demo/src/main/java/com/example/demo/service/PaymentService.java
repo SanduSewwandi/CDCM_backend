@@ -242,7 +242,8 @@ public class PaymentService {
         String doctorSnippet = !doctorName.isEmpty() ? " with " + doctorName : "";
         String apptNumStr = appointment.getAppointmentNumber() != null ? appointment.getAppointmentNumber() : orderId;
         String dateStr = appointment.getDate() != null ? appointment.getDate() : "";
-        String timeStr = appointment.getTime() != null && !appointment.getTime().isBlank() ? " at " + appointment.getTime() : "";
+        String formattedTime = EmailService.formatTimeString(appointment.getTime());
+        String timeStr = !formattedTime.equals("—") ? " at " + formattedTime : "";
 
         // 1. Notify Patient
         try {
@@ -252,7 +253,7 @@ public class PaymentService {
                 note.setTitle("Appointment Confirmed");
                 note.setMessage("Payment Successful for Appointment #" + apptNumStr + doctorSnippet + 
                         (!dateStr.isEmpty() ? " on " + dateStr : "") + timeStr);
-                note.setCreatedAt(now);
+                note.setCreatedAt(java.time.Instant.now());
                 note.setRead(false);
                 if (appointment.getDoctorId() != null) {
                     note.setDoctorId(appointment.getDoctorId());
@@ -298,7 +299,7 @@ public class PaymentService {
                     docNote.setTitle("Appointment Confirmed & Paid");
                     docNote.setMessage("Patient confirmed payment for Appointment #" + apptNumStr + " on " + dateStr + timeStr + ".");
                 }
-                docNote.setCreatedAt(now);
+                docNote.setCreatedAt(java.time.Instant.now());
                 docNote.setRead(false);
                 if (!doctorName.isEmpty()) {
                     docNote.setDoctorName(doctorName);
@@ -324,8 +325,8 @@ public class PaymentService {
                 hospNote.setTime(appointment.getTime());
                 hospNote.setTitle("Payment Confirmed");
                 String amountDisplay = String.format("%.2f", appointment.getAmount() > 0 ? appointment.getAmount() : 1000.00);
-                hospNote.setMessage("Payment of LKR " + amountDisplay + " confirmed for Appointment #" + apptNumStr + doctorSnippet + ".");
-                hospNote.setCreatedAt(now);
+                hospNote.setMessage("Payment of LKR " + amountDisplay + " confirmed for Appointment #" + apptNumStr + doctorSnippet + (!dateStr.isEmpty() ? " on " + dateStr : "") + timeStr + ".");
+                hospNote.setCreatedAt(java.time.Instant.now());
                 hospNote.setRead(false);
                 notificationRepo.save(hospNote);
                 System.out.println("Payment notification successfully created and saved for Hospital ID: " + targetHospitalId);

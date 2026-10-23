@@ -12,15 +12,20 @@ import org.springframework.stereotype.Service;
 import com.example.demo.model.Notification;
 import com.example.demo.model.Patient;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 
 @Service
 public class ScheduleService {
+
+        public static final ZoneId SRI_LANKA_ZONE = ZoneId.of("Asia/Colombo");
 
         private final ScheduleRepository scheduleRepository;
         private final DoctorRepository doctorRepository;
@@ -314,7 +319,7 @@ public class ScheduleService {
                                 note.setMessage(doctorName.trim() + " accepted the " + saved.getType()
                                                 + " schedule for " + saved.getDate() + " (" + saved.getStartTime()
                                                 + " - " + saved.getEndTime() + ").");
-                                note.setCreatedAt(LocalDateTime.now());
+                                note.setCreatedAt(Instant.now());
                                 note.setRead(false);
                                 notificationRepository.save(note);
                         }
@@ -394,7 +399,7 @@ public class ScheduleService {
                                 note.setMessage(doctorName.trim() + " declined the " + saved.getType()
                                                 + " schedule for " + saved.getDate() + " (" + saved.getStartTime()
                                                 + " - " + saved.getEndTime() + ")." + reasonSuffix);
-                                note.setCreatedAt(LocalDateTime.now());
+                                note.setCreatedAt(Instant.now());
                                 note.setRead(false);
                                 notificationRepository.save(note);
                         }
@@ -1029,7 +1034,7 @@ public class ScheduleService {
                                 doctorNotification.setMessage(hospitalName + " has cancelled your schedule on " + schedule.getDate() + 
                                                 " (" + schedule.getStartTime() + " - " + schedule.getEndTime() + "). Reason: " + cancelReason);
                                 doctorNotification.setRead(false);
-                                doctorNotification.setCreatedAt(LocalDateTime.now());
+                                doctorNotification.setCreatedAt(Instant.now());
                                 notificationRepository.save(doctorNotification);
                         }
                 } catch (Exception e) {
@@ -1081,9 +1086,9 @@ public class ScheduleService {
                                         patientNotification.setDoctorName(doctorName);
                                         patientNotification.setTitle("Schedule Cancelled by Hospital");
                                         patientNotification.setMessage("Your " + appointmentType + " with " + doctorName + " on " + schedule.getDate() + 
-                                                        " has been cancelled by " + hospitalName + ". Reason: " + cancelReason);
+                                                        " (" + EmailService.formatTimeString(schedule.getStartTime() + " - " + schedule.getEndTime()) + ") has been cancelled by " + hospitalName + ". Reason: " + cancelReason);
                                         patientNotification.setRead(false);
-                                        patientNotification.setCreatedAt(LocalDateTime.now());
+                                        patientNotification.setCreatedAt(Instant.now());
                                         notificationRepository.save(patientNotification);
                                 }
                         } catch (Exception e) {
@@ -1125,7 +1130,7 @@ public class ScheduleService {
                 );
         }
 
-        private boolean isSchedulePast(String dateStr, String timeStr) {
+        public static boolean isSchedulePast(String dateStr, String timeStr) {
                 if (dateStr == null || dateStr.trim().isEmpty()) {
                         return false;
                 }
@@ -1169,7 +1174,8 @@ public class ScheduleService {
                         }
 
                         LocalDateTime scheduleDateTime = LocalDateTime.of(date, time);
-                        return !scheduleDateTime.isAfter(LocalDateTime.now());
+                        LocalDateTime nowInColombo = ZonedDateTime.now(SRI_LANKA_ZONE).toLocalDateTime();
+                        return !scheduleDateTime.isAfter(nowInColombo);
                 } catch (Exception e) {
                         return false;
                 }
