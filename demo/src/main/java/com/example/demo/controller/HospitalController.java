@@ -257,4 +257,39 @@ public class HospitalController {
                     );
         }
     }
+
+    // =========================================================
+    // CANCELLATION REFUND POLICY
+    // =========================================================
+    @GetMapping("/me/refund-policy")
+    public ResponseEntity<?> getMyRefundPolicy(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Authentication required"));
+        }
+        try {
+            com.example.demo.model.CancellationRefundPolicy policy =
+                    hospitalService.getRefundPolicy(principal.getName());
+            return ResponseEntity.ok(policy);
+        } catch (Exception error) {
+            return ResponseEntity.badRequest().body(Map.of("message", error.getMessage()));
+        }
+    }
+
+    @PutMapping("/me/refund-policy")
+    public ResponseEntity<?> updateMyRefundPolicy(
+            Principal principal,
+            @RequestBody com.example.demo.model.CancellationRefundPolicy policy) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Authentication required"));
+        }
+        try {
+            com.example.demo.model.CancellationRefundPolicy updated =
+                    hospitalService.updateRefundPolicy(principal.getName(), policy);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException error) {
+            return ResponseEntity.badRequest().body(Map.of("message", error.getMessage()));
+        } catch (Exception error) {
+            return ResponseEntity.status(500).body(Map.of("message", error.getMessage()));
+        }
+    }
 }

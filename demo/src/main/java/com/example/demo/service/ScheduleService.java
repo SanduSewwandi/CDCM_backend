@@ -621,6 +621,19 @@ public class ScheduleService {
                                 // =========================================================
 
                                 appt.setStatus("CANCELLED");
+                                appt.setCancelledBy("DOCTOR");
+                                appt.setRefundReason("Doctor cancelled schedule: " + doctorName);
+                                if (isPaid) {
+                                        double originalPaid = appt.getAmount() > 0 ? appt.getAmount() : 1000.00;
+                                        appt.setRefundPercentage(100.0);
+                                        appt.setRefundAmount(originalPaid);
+                                        appt.setRefundStatus("REFUNDED");
+                                        appt.setRefundedAt(java.time.LocalDateTime.now());
+                                } else {
+                                        appt.setRefundPercentage(0.0);
+                                        appt.setRefundAmount(0.0);
+                                        appt.setRefundStatus(null);
+                                }
 
                                 appointmentRepository.save(appt);
 
@@ -754,8 +767,9 @@ public class ScheduleService {
                                                         + schedule.getStartTime()
                                                         + " has been cancelled by "
                                                         + hospitalName
-                                                        + ". Your payment has already been received. "
-                                                        + "Please contact the hospital regarding your refund.";
+                                                        + ". Your payment has been recorded for a 100% refund (LKR "
+                                                        + String.format(java.util.Locale.US, "%.2f", appt.getRefundAmount())
+                                                        + "). Please contact the hospital regarding settlement.";
 
                                 } else {
 

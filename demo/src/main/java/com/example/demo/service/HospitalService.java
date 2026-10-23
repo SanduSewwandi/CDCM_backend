@@ -455,4 +455,33 @@ public class HospitalService {
         hospitalRepository.save(hospital);
         return hospital.getNotificationPreference();
     }
+
+    // ================= CANCELLATION REFUND POLICY =================
+    public com.example.demo.model.CancellationRefundPolicy getRefundPolicy(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("Authentication email is required");
+        }
+        Hospital hospital = hospitalRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new RuntimeException("Hospital not found"));
+        return hospital.getCancellationRefundPolicy();
+    }
+
+    public com.example.demo.model.CancellationRefundPolicy updateRefundPolicy(String email, com.example.demo.model.CancellationRefundPolicy policy) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("Authentication email is required");
+        }
+        if (policy == null) {
+            throw new IllegalArgumentException("Refund policy cannot be null");
+        }
+        if (!policy.arePercentagesValid()) {
+            throw new IllegalArgumentException("All refund percentages must be between 0 and 100");
+        }
+
+        Hospital hospital = hospitalRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new RuntimeException("Hospital not found"));
+
+        hospital.setCancellationRefundPolicy(policy);
+        hospitalRepository.save(hospital);
+        return hospital.getCancellationRefundPolicy();
+    }
 }

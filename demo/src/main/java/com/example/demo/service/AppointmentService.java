@@ -5,6 +5,7 @@ import com.example.demo.model.Appointment;
 import com.example.demo.model.Doctor;
 import com.example.demo.model.Hospital;
 import com.example.demo.model.Notification;
+import com.example.demo.model.Patient;
 import com.example.demo.model.Schedule;
 import com.example.demo.repository.AppointmentRepository;
 import com.example.demo.repository.DoctorRepository;
@@ -17,11 +18,19 @@ import org.springframework.stereotype.Service;
 import com.example.demo.model.Conversation;
 import com.example.demo.service.ChatService;
 
+import com.example.demo.dto.RefundPreviewDTO;
+import com.example.demo.model.CancellationRefundPolicy;
+
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -258,6 +267,13 @@ public class AppointmentService {
                     dto.setPaymentStatus(appt.getPaymentStatus());
                     dto.setDoctorId(appt.getDoctorId());
                     dto.setPaid(appt.isPaid());
+                    dto.setAmount(appt.getAmount());
+                    dto.setRefundPercentage(appt.getRefundPercentage());
+                    dto.setRefundAmount(appt.getRefundAmount());
+                    dto.setRefundStatus(appt.getRefundStatus());
+                    dto.setCancelledBy(appt.getCancelledBy());
+                    dto.setRefundReason(appt.getRefundReason());
+                    dto.setRefundedAt(appt.getRefundedAt());
 
                     boolean accessActive = appt.getMedicalHistoryAccessExpiresAt() != null
                             && LocalDateTime.now().isBefore(appt.getMedicalHistoryAccessExpiresAt());
@@ -379,6 +395,13 @@ public class AppointmentService {
                     dto.setPaymentStatus(appt.getPaymentStatus());
                     dto.setDoctorId(appt.getDoctorId());
                     dto.setPaid(appt.isPaid());
+                    dto.setAmount(appt.getAmount());
+                    dto.setRefundPercentage(appt.getRefundPercentage());
+                    dto.setRefundAmount(appt.getRefundAmount());
+                    dto.setRefundStatus(appt.getRefundStatus());
+                    dto.setCancelledBy(appt.getCancelledBy());
+                    dto.setRefundReason(appt.getRefundReason());
+                    dto.setRefundedAt(appt.getRefundedAt());
 
                     boolean docAccessActive = appt.getMedicalHistoryAccessExpiresAt() != null
                             && LocalDateTime.now().isBefore(appt.getMedicalHistoryAccessExpiresAt());
@@ -408,5 +431,376 @@ public class AppointmentService {
                 .sorted(Comparator.comparing(AppointmentResponseDTO::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(AppointmentResponseDTO::getAppointmentNumber, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
+    }
+
+    // =========================================================
+    // CANCELLATION & REFUND POLICY LOGIC
+    // =========================================================
+
+    public LocalDateTime parseAppointmentDateTime(String dateStr, String timeStr, String scheduleId) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            if (scheduleId != null && scheduleRepository != null) {
+                Optional<Schedule> sOpt = scheduleRepository.findById(scheduleId);
+                if (sOpt.isPresent() && sOpt.get().getDate() != null) {
+                    dateStr = sOpt.get().getDate();
+                    if ((timeStr == null || timeStr.trim().isEmpty()) && sOpt.get().getStartTime() != null) {
+                        timeStr = sOpt.get().getStartTime();
+                    }
+                }
+            }
+        }
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+
+        LocalDate date = null;
+        String trimmedDate = dateStr.trim();
+        if (trimmedDate.contains("T")) {
+            trimmedDate = trimmedDate.split("T")[0].trim();
+        }
+
+        String[] datePatterns = { "yyyy-MM-dd", "yyyy/MM/dd", "dd-MM-yyyy", "dd/MM/yyyy" };
+        for (String pattern : datePatterns) {
+            try {
+                date = LocalDate.parse(trimmedDate, DateTimeFormatter.ofPattern(pattern));
+                break;
+            } catch (Exception ignored) {}
+        }
+
+        if (date == null) {
+            return null;
+        }
+
+        LocalTime time = null;
+        if (timeStr != null && !timeStr.trim().isEmpty()) {
+            String trimmedTime = timeStr.trim();
+            if (trimmedTime.contains("-")) {
+                trimmedTime = trimmedTime.split("-")[0].trim();
+            }
+            String[] timePatterns = { "h:mm a", "hh:mm a", "H:mm", "HH:mm", "H:mm:ss", "HH:mm:ss" };
+            for (String pattern : timePatterns) {
+                try {
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH);
+                    time = LocalTime.parse(trimmedTime, formatter);
+                    break;
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (time == null && scheduleId != null && scheduleRepository != null) {
+            try {
+                Optional<Schedule> sOpt = scheduleRepository.findById(scheduleId);
+                if (sOpt.isPresent() && sOpt.get().getStartTime() != null) {
+                    String sTime = sOpt.get().getStartTime().trim();
+                    if (sTime.contains("-")) {
+                        sTime = sTime.split("-")[0].trim();
+                    }
+                    String[] timePatterns = { "h:mm a", "hh:mm a", "H:mm", "HH:mm", "H:mm:ss", "HH:mm:ss" };
+                    for (String pattern : timePatterns) {
+                        try {
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH);
+                            time = LocalTime.parse(sTime, formatter);
+                            break;
+                        } catch (Exception ignored) {}
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (time == null) {
+            time = LocalTime.of(0, 0);
+        }
+
+        return LocalDateTime.of(date, time);
+    }
+
+    public CancellationRefundPolicy resolveHospitalRefundPolicy(String hospitalId, String scheduleId, String doctorId) {
+        if (hospitalId != null && !hospitalId.trim().isEmpty() && !"null".equalsIgnoreCase(hospitalId) && hospitalRepository != null) {
+            try {
+                Optional<Hospital> hOpt = hospitalRepository.findById(hospitalId.trim());
+                if (hOpt.isPresent() && hOpt.get().getCancellationRefundPolicy() != null) {
+                    return hOpt.get().getCancellationRefundPolicy();
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (scheduleId != null && scheduleRepository != null && hospitalRepository != null) {
+            try {
+                Optional<Schedule> sOpt = scheduleRepository.findById(scheduleId);
+                if (sOpt.isPresent() && sOpt.get().getHospitalId() != null) {
+                    Optional<Hospital> hOpt = hospitalRepository.findById(sOpt.get().getHospitalId().trim());
+                    if (hOpt.isPresent() && hOpt.get().getCancellationRefundPolicy() != null) {
+                        return hOpt.get().getCancellationRefundPolicy();
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (doctorId != null && doctorRepository != null && hospitalRepository != null) {
+            try {
+                Optional<Doctor> dOpt = doctorRepository.findById(doctorId);
+                if (dOpt.isPresent() && dOpt.get().getHospitals() != null && !dOpt.get().getHospitals().isEmpty()) {
+                    Optional<Hospital> hOpt = hospitalRepository.findById(dOpt.get().getHospitals().get(0));
+                    if (hOpt.isPresent() && hOpt.get().getCancellationRefundPolicy() != null) {
+                        return hOpt.get().getCancellationRefundPolicy();
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return new CancellationRefundPolicy();
+    }
+
+    public double calculateRefundPercentage(Appointment appt, LocalDateTime cancelTime) {
+        LocalDateTime apptStart = parseAppointmentDateTime(appt.getDate(), appt.getTime(), appt.getScheduleId());
+        if (apptStart == null) {
+            throw new IllegalArgumentException("Cannot determine appointment start time.");
+        }
+        if (!apptStart.isAfter(cancelTime)) {
+            throw new IllegalArgumentException("Cannot cancel an appointment that has already started or is in the past.");
+        }
+
+        double hoursRemaining = Duration.between(cancelTime, apptStart).toSeconds() / 3600.0;
+        CancellationRefundPolicy policy = resolveHospitalRefundPolicy(appt.getHospitalId(), appt.getScheduleId(), appt.getDoctorId());
+
+        if (hoursRemaining >= 48.0) {
+            return policy.getOver48HoursPercent();
+        } else if (hoursRemaining >= 24.0) {
+            return policy.getBetween24And48HoursPercent();
+        } else if (hoursRemaining >= 6.0) {
+            return policy.getBetween6And24HoursPercent();
+        } else {
+            return policy.getUnder6HoursPercent();
+        }
+    }
+
+    public RefundPreviewDTO getCancellationRefundPreview(String appointmentId, String patientEmail) {
+        if (appointmentId == null || appointmentId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Appointment ID is required.");
+        }
+        if (patientEmail == null || patientEmail.trim().isEmpty()) {
+            throw new SecurityException("Authentication is required.");
+        }
+
+        Appointment appt = appointmentRepository.findById(appointmentId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Appointment not found with id: " + appointmentId));
+
+        Optional<Patient> pOpt = patientRepository.findByEmail(patientEmail.trim().toLowerCase());
+        if (pOpt.isEmpty()) {
+            pOpt = patientRepository.findByEmail(patientEmail.trim());
+        }
+        Patient patient = pOpt.orElseThrow(() -> new SecurityException("Authenticated patient profile not found."));
+
+        if (appt.getPatientId() == null || !appt.getPatientId().equals(patient.getId())) {
+            throw new SecurityException("Forbidden: You are not authorized to preview or cancel this appointment.");
+        }
+
+        if ("CANCELLED".equalsIgnoreCase(appt.getStatus())) {
+            throw new IllegalArgumentException("This appointment is already cancelled.");
+        }
+        if ("COMPLETED".equalsIgnoreCase(appt.getStatus())) {
+            throw new IllegalArgumentException("Completed appointments cannot be cancelled.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime apptStart = parseAppointmentDateTime(appt.getDate(), appt.getTime(), appt.getScheduleId());
+        if (apptStart == null || !apptStart.isAfter(now)) {
+            throw new IllegalArgumentException("Cannot cancel an appointment that has already started or is in the past.");
+        }
+
+        double hoursRemaining = Duration.between(now, apptStart).toSeconds() / 3600.0;
+        double refundPercentage = calculateRefundPercentage(appt, now);
+        boolean isPaid = appt.isPaid() || "PAID".equalsIgnoreCase(appt.getPaymentStatus());
+        double originalPayment = appt.getAmount() > 0 ? appt.getAmount() : (isPaid ? 1000.00 : 0.0);
+        double eligibleRefund = isPaid ? Math.round((originalPayment * refundPercentage / 100.0) * 100.0) / 100.0 : 0.0;
+
+        String doctorName = "";
+        if (appt.getDoctorId() != null && doctorRepository != null) {
+            try {
+                doctorName = doctorRepository.findById(appt.getDoctorId())
+                        .map(d -> ((d.getTitle() != null ? d.getTitle() : "Dr.") + " " +
+                                (d.getFirstName() != null ? d.getFirstName() : "") + " " +
+                                (d.getLastName() != null ? d.getLastName() : "")).trim())
+                        .orElse("");
+            } catch (Exception ignored) {}
+        }
+
+        String hospitalName = "";
+        if (appt.getHospitalId() != null && hospitalRepository != null) {
+            try {
+                hospitalName = hospitalRepository.findById(appt.getHospitalId())
+                        .map(Hospital::getName)
+                        .orElse("");
+            } catch (Exception ignored) {}
+        }
+
+        RefundPreviewDTO preview = new RefundPreviewDTO();
+        preview.setAppointmentId(appt.getId());
+        preview.setAppointmentNumber(appt.getAppointmentNumber());
+        preview.setPatientId(appt.getPatientId());
+        preview.setPatientName(appt.getPatientName());
+        preview.setDoctorId(appt.getDoctorId());
+        preview.setDoctorName(doctorName);
+        preview.setHospitalId(appt.getHospitalId());
+        preview.setHospitalName(hospitalName);
+        preview.setDate(appt.getDate());
+        preview.setTime(appt.getTime());
+        preview.setPaid(isPaid);
+        preview.setStatus(appt.getStatus());
+        preview.setOriginalPayment(originalPayment);
+        preview.setRefundPercentage(refundPercentage);
+        preview.setEligibleRefund(eligibleRefund);
+        preview.setHoursRemaining(Math.round(hoursRemaining * 100.0) / 100.0);
+        preview.setEligibleForRefund(isPaid && eligibleRefund > 0);
+        preview.setMessage(isPaid 
+                ? "Cancellation will record a refund of " + refundPercentage + "% (Rs. " + String.format(Locale.US, "%.2f", eligibleRefund) + ")."
+                : "Appointment is unpaid. No refund will be recorded.");
+
+        return preview;
+    }
+
+    public Appointment cancelAppointmentByPatient(String appointmentId, String patientEmail, String reason) {
+        if (appointmentId == null || appointmentId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Appointment ID is required.");
+        }
+        if (patientEmail == null || patientEmail.trim().isEmpty()) {
+            throw new SecurityException("Authentication is required.");
+        }
+
+        Appointment appt = appointmentRepository.findById(appointmentId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Appointment not found with id: " + appointmentId));
+
+        Optional<Patient> pOpt = patientRepository.findByEmail(patientEmail.trim().toLowerCase());
+        if (pOpt.isEmpty()) {
+            pOpt = patientRepository.findByEmail(patientEmail.trim());
+        }
+        Patient patient = pOpt.orElseThrow(() -> new SecurityException("Authenticated patient profile not found."));
+
+        if (appt.getPatientId() == null || !appt.getPatientId().equals(patient.getId())) {
+            throw new SecurityException("Forbidden: You are not authorized to cancel this appointment.");
+        }
+
+        if ("CANCELLED".equalsIgnoreCase(appt.getStatus())) {
+            throw new IllegalArgumentException("This appointment is already cancelled.");
+        }
+        if ("COMPLETED".equalsIgnoreCase(appt.getStatus())) {
+            throw new IllegalArgumentException("Completed appointments cannot be cancelled.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime apptStart = parseAppointmentDateTime(appt.getDate(), appt.getTime(), appt.getScheduleId());
+        if (apptStart == null || !apptStart.isAfter(now)) {
+            throw new IllegalArgumentException("Cannot cancel an appointment that has already started or is in the past.");
+        }
+
+        boolean isPaid = appt.isPaid() || "PAID".equalsIgnoreCase(appt.getPaymentStatus());
+        appt.setStatus("CANCELLED");
+        appt.setCancelledBy("PATIENT");
+        appt.setRefundReason(reason != null && !reason.trim().isEmpty() ? reason.trim() : "Cancelled by patient");
+
+        if (isPaid) {
+            double refundPercentage = calculateRefundPercentage(appt, now);
+            double originalPayment = appt.getAmount() > 0 ? appt.getAmount() : 1000.00;
+            double refundAmount = Math.round((originalPayment * refundPercentage / 100.0) * 100.0) / 100.0;
+            appt.setRefundPercentage(refundPercentage);
+            appt.setRefundAmount(refundAmount);
+            appt.setRefundStatus("REFUNDED");
+            appt.setRefundedAt(now);
+        } else {
+            appt.setPaymentStatus("FAILED");
+            appt.setRefundPercentage(0.0);
+            appt.setRefundAmount(0.0);
+            appt.setRefundStatus(null);
+        }
+
+        Appointment saved = appointmentRepository.save(appt);
+
+        // Notify Doctor and Hospital
+        try {
+            String apptNumStr = saved.getAppointmentNumber() != null ? saved.getAppointmentNumber() : saved.getId();
+            String patientNameStr = patient.getFirstName() + " " + patient.getLastName();
+            String dateStr = saved.getDate() != null ? saved.getDate() : "";
+            String timeStr = saved.getTime() != null ? " at " + saved.getTime() : "";
+
+            if (saved.getDoctorId() != null && notificationRepository != null) {
+                Notification docNote = new Notification();
+                docNote.setUserId(saved.getDoctorId());
+                docNote.setDoctorId(saved.getDoctorId());
+                docNote.setScheduleId(saved.getScheduleId());
+                docNote.setDate(saved.getDate());
+                docNote.setTime(saved.getTime());
+                docNote.setHospitalId(saved.getHospitalId());
+                docNote.setTitle("Appointment Cancelled by Patient");
+                docNote.setMessage("Patient " + patientNameStr + " has cancelled appointment #" + apptNumStr + " on " + dateStr + timeStr + ".");
+                docNote.setCreatedAt(now);
+                docNote.setRead(false);
+                notificationRepository.save(docNote);
+            }
+
+            if (saved.getHospitalId() != null && notificationRepository != null) {
+                Notification hospNote = new Notification();
+                hospNote.setUserId(saved.getHospitalId());
+                hospNote.setHospitalId(saved.getHospitalId());
+                hospNote.setDoctorId(saved.getDoctorId());
+                hospNote.setScheduleId(saved.getScheduleId());
+                hospNote.setDate(saved.getDate());
+                hospNote.setTime(saved.getTime());
+                hospNote.setTitle("Appointment Cancelled by Patient");
+                hospNote.setMessage("Appointment #" + apptNumStr + " cancelled by patient. Refund status: " + 
+                        (saved.getRefundStatus() != null ? saved.getRefundStatus() + " (" + saved.getRefundPercentage() + "% - LKR " + saved.getRefundAmount() + ")" : "Unpaid") + ".");
+                hospNote.setCreatedAt(now);
+                hospNote.setRead(false);
+                notificationRepository.save(hospNote);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to send cancellation notifications: " + e.getMessage());
+        }
+
+        return saved;
+    }
+
+    public Appointment cancelAppointmentByHospital(String appointmentId, String hospitalEmail, String reason) {
+        if (appointmentId == null || appointmentId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Appointment ID is required.");
+        }
+        if (hospitalEmail == null || hospitalEmail.trim().isEmpty()) {
+            throw new SecurityException("Authentication is required.");
+        }
+
+        Hospital hospital = hospitalRepository.findByEmail(hospitalEmail.trim().toLowerCase())
+                .orElseThrow(() -> new SecurityException("Hospital profile not found."));
+
+        Appointment appt = appointmentRepository.findById(appointmentId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Appointment not found with id: " + appointmentId));
+
+        if (appt.getHospitalId() != null && !appt.getHospitalId().equals(hospital.getId())) {
+            throw new SecurityException("Forbidden: You are not authorized to cancel an appointment belonging to another hospital.");
+        }
+
+        if ("CANCELLED".equalsIgnoreCase(appt.getStatus())) {
+            throw new IllegalArgumentException("This appointment is already cancelled.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean isPaid = appt.isPaid() || "PAID".equalsIgnoreCase(appt.getPaymentStatus());
+
+        appt.setStatus("CANCELLED");
+        appt.setCancelledBy("HOSPITAL");
+        appt.setRefundReason(reason != null && !reason.trim().isEmpty() ? reason.trim() : "Cancelled by hospital: " + hospital.getName());
+
+        if (isPaid) {
+            double originalPayment = appt.getAmount() > 0 ? appt.getAmount() : 1000.00;
+            appt.setRefundPercentage(100.0);
+            appt.setRefundAmount(originalPayment);
+            appt.setRefundStatus("REFUNDED");
+            appt.setRefundedAt(now);
+        } else {
+            appt.setPaymentStatus("FAILED");
+            appt.setRefundPercentage(0.0);
+            appt.setRefundAmount(0.0);
+            appt.setRefundStatus(null);
+        }
+
+        return appointmentRepository.save(appt);
     }
 }
