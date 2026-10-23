@@ -10,6 +10,9 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 @Service
 public class EmailService {
@@ -17,6 +20,50 @@ public class EmailService {
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     private final JavaMailSender mailSender;
+
+    /**
+     * Formats a local time string or range (e.g., "09:00", "09:00 - 11:00", "23:30 - 00:30")
+     * into a consistent 12-hour AM/PM format (e.g., "09:00 AM - 11:00 AM", "11:30 PM - 12:30 AM").
+     * Preserves already formatted strings (e.g., containing "AM" or "PM").
+     */
+    public static String formatTimeString(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
+            return "—";
+        }
+        String trimmed = timeStr.trim();
+        if (trimmed.contains(" - ")) {
+            String[] parts = trimmed.split(" - ", 2);
+            return formatSingleTime(parts[0].trim()) + " - " + formatSingleTime(parts[1].trim());
+        } else if (trimmed.contains(" – ")) {
+            String[] parts = trimmed.split(" – ", 2);
+            return formatSingleTime(parts[0].trim()) + " - " + formatSingleTime(parts[1].trim());
+        } else if (trimmed.contains(" to ")) {
+            String[] parts = trimmed.split(" to ", 2);
+            return formatSingleTime(parts[0].trim()) + " - " + formatSingleTime(parts[1].trim());
+        } else if (trimmed.contains("-") && !trimmed.toUpperCase().contains("AM") && !trimmed.toUpperCase().contains("PM")) {
+            String[] parts = trimmed.split("-", 2);
+            return formatSingleTime(parts[0].trim()) + " - " + formatSingleTime(parts[1].trim());
+        }
+        return formatSingleTime(trimmed);
+    }
+
+    private static String formatSingleTime(String time) {
+        if (time == null || time.trim().isEmpty()) return "";
+        String trimmed = time.trim();
+        if (trimmed.toUpperCase().contains("AM") || trimmed.toUpperCase().contains("PM")) {
+            return trimmed;
+        }
+        String[] patterns = { "H:mm", "HH:mm", "H:mm:ss", "HH:mm:ss" };
+        for (String pattern : patterns) {
+            try {
+                DateTimeFormatter parser = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH);
+                LocalTime lt = LocalTime.parse(trimmed, parser);
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH);
+                return lt.format(formatter);
+            } catch (Exception ignored) {}
+        }
+        return trimmed;
+    }
 
     @Value("${spring.mail.from:${MAIL_FROM:hirunireshasewwandi@gmail.com}}")
     private String mailFrom;
@@ -233,6 +280,7 @@ public class EmailService {
                     ? "Appointment Cancelled - Refund Action Required"
                     : "Appointment Cancelled";
 
+            String displayTime = formatTimeString(time);
             String greeting = "Dear " + (patientName != null && !patientName.isBlank() ? patientName : "Patient") + ",\n\n";
             String apptNumStr = appointmentNumber != null ? appointmentNumber : "—";
             String reasonStr = (reason != null && !reason.isBlank()) ? reason : "Cancelled by patient";
@@ -244,7 +292,7 @@ public class EmailService {
             text.append("Doctor: ").append(doctorName).append("\n");
             text.append("Hospital: ").append(hospitalName).append("\n");
             text.append("Date: ").append(date).append("\n");
-            text.append("Time: ").append(time).append("\n");
+            text.append("Time: ").append(displayTime).append("\n");
             text.append("Reason: ").append(reasonStr).append("\n\n");
 
             if (isRefundEligible && refundAmount > 0) {
@@ -287,7 +335,7 @@ public class EmailService {
                     + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Appointment Number:</strong> " + escapeHtml(apptNumStr) + "</p>"
                     + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Doctor:</strong> " + escapeHtml(doctorName) + "</p>"
                     + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Hospital:</strong> " + escapeHtml(hospitalName) + "</p>"
-                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Date & Time:</strong> " + escapeHtml(date) + " at " + escapeHtml(time) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Date & Time:</strong> " + escapeHtml(date) + " at " + escapeHtml(displayTime) + "</p>"
                     + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Reason:</strong> " + escapeHtml(reasonStr) + "</p>"
                     + "</div>"
                     + htmlRefundSection
@@ -316,6 +364,7 @@ public class EmailService {
 
         try {
             String subject = "Shift Cancelled by Doctor - 100% Refund Information";
+            String displayTime = formatTimeString(time);
             String greeting = "Dear " + (patientName != null && !patientName.isBlank() ? patientName : "Patient") + ",\n\n";
             String apptNumStr = appointmentNumber != null ? appointmentNumber : "—";
             String reasonStr = (reason != null && !reason.isBlank()) ? reason : "Doctor unavailable";
@@ -325,6 +374,7 @@ public class EmailService {
             text.append("We regret to inform you that Dr. ").append(doctorName)
                     .append(" has cancelled their scheduled shift on ").append(date)
                     .append(" at ").append(hospitalName).append(".\n\n");
+            text.append("Time: ").append(displayTime).append("\n\n");
             text.append("Reason: ").append(reasonStr).append("\n\n");
 
             if (isPaid) {
@@ -357,7 +407,7 @@ public class EmailService {
                     + "<p style=\"font-size: 14px; color: #475569;\">We regret to inform you that <strong>Dr. " + escapeHtml(doctorName) + "</strong> has cancelled their scheduled shift on <strong>" + escapeHtml(date) + "</strong> at <strong>" + escapeHtml(hospitalName) + "</strong>.</p>"
                     + "<div style=\"background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; margin: 16px 0;\">"
                     + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Appointment:</strong> #" + escapeHtml(apptNumStr) + "</p>"
-                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Time:</strong> " + escapeHtml(time) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Time:</strong> " + escapeHtml(displayTime) + "</p>"
                     + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Reason:</strong> " + escapeHtml(reasonStr) + "</p>"
                     + "</div>"
                     + htmlRefundSection
@@ -386,6 +436,7 @@ public class EmailService {
 
         try {
             String subject = "Schedule Cancelled by Hospital - 100% Refund Information";
+            String displayTime = formatTimeString(time);
             String greeting = "Dear " + (patientName != null && !patientName.isBlank() ? patientName : "Patient") + ",\n\n";
             String apptNumStr = appointmentNumber != null ? appointmentNumber : "—";
             String reasonStr = (reason != null && !reason.isBlank()) ? reason : "Hospital operational requirements";
@@ -395,6 +446,7 @@ public class EmailService {
             text.append("We regret to inform you that ").append(hospitalName)
                     .append(" has cancelled the scheduled shift for Dr. ").append(doctorName)
                     .append(" on ").append(date).append(".\n\n");
+            text.append("Time: ").append(displayTime).append("\n\n");
             text.append("Reason: ").append(reasonStr).append("\n\n");
 
             if (isPaid) {
@@ -427,7 +479,7 @@ public class EmailService {
                     + "<p style=\"font-size: 14px; color: #475569;\">We regret to inform you that <strong>" + escapeHtml(hospitalName) + "</strong> has cancelled the scheduled shift for <strong>Dr. " + escapeHtml(doctorName) + "</strong> on <strong>" + escapeHtml(date) + "</strong>.</p>"
                     + "<div style=\"background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; margin: 16px 0;\">"
                     + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Appointment:</strong> #" + escapeHtml(apptNumStr) + "</p>"
-                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Time:</strong> " + escapeHtml(time) + "</p>"
+                    + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Time:</strong> " + escapeHtml(displayTime) + "</p>"
                     + "<p style=\"margin: 4px 0; color: #334155;\"><strong>Reason:</strong> " + escapeHtml(reasonStr) + "</p>"
                     + "</div>"
                     + htmlRefundSection

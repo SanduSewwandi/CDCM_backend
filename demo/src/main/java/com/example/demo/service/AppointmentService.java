@@ -23,9 +23,12 @@ import com.example.demo.dto.RefundPreviewDTO;
 import com.example.demo.model.CancellationRefundPolicy;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Comparator;
@@ -38,6 +41,12 @@ import java.util.stream.Collectors;
 
 @Service
 public class AppointmentService {
+
+    public static final ZoneId SRI_LANKA_ZONE = ZoneId.of("Asia/Colombo");
+
+    public LocalDateTime nowInSriLanka() {
+        return ZonedDateTime.now(SRI_LANKA_ZONE).toLocalDateTime();
+    }
 
     @Autowired
     private AppointmentRepository appointmentRepository;
@@ -292,7 +301,7 @@ public class AppointmentService {
         dto.setRefundConfirmedBy(appt.getRefundConfirmedBy());
 
         boolean accessActive = appt.getMedicalHistoryAccessExpiresAt() != null
-                && LocalDateTime.now().isBefore(appt.getMedicalHistoryAccessExpiresAt());
+                && nowInSriLanka().isBefore(appt.getMedicalHistoryAccessExpiresAt());
         dto.setMedicalHistoryAccessActive(accessActive);
         dto.setMedicalHistoryAccessExpiresAt(appt.getMedicalHistoryAccessExpiresAt());
 
@@ -536,7 +545,7 @@ public class AppointmentService {
                 time = LocalTime.MIN;
             }
             LocalDateTime scheduleDateTime = LocalDateTime.of(date, time);
-            return !scheduleDateTime.isAfter(LocalDateTime.now());
+            return !scheduleDateTime.isAfter(nowInSriLanka());
         } catch (Exception e) {
             return false;
         }
@@ -630,7 +639,7 @@ public class AppointmentService {
             throw new IllegalArgumentException("Completed appointments cannot be cancelled.");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = nowInSriLanka();
         LocalDateTime apptStart = parseAppointmentDateTime(appt.getDate(), appt.getTime(), appt.getScheduleId());
         if (apptStart == null || !apptStart.isAfter(now)) {
             throw new IllegalArgumentException("Cannot cancel an appointment that has already started or is in the past.");
@@ -715,7 +724,7 @@ public class AppointmentService {
             throw new IllegalArgumentException("Completed appointments cannot be cancelled.");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = nowInSriLanka();
         LocalDateTime apptStart = parseAppointmentDateTime(appt.getDate(), appt.getTime(), appt.getScheduleId());
         if (apptStart == null || !apptStart.isAfter(now)) {
             throw new IllegalArgumentException("Cannot cancel an appointment that has already started or is in the past.");
@@ -753,7 +762,8 @@ public class AppointmentService {
             String apptNumStr = saved.getAppointmentNumber() != null ? saved.getAppointmentNumber() : saved.getId();
             String patientNameStr = patient.getFirstName() + " " + patient.getLastName();
             String dateStr = saved.getDate() != null ? saved.getDate() : "";
-            String timeStr = saved.getTime() != null ? " at " + saved.getTime() : "";
+            String formattedTime = EmailService.formatTimeString(saved.getTime());
+            String timeStr = !formattedTime.equals("—") ? " at " + formattedTime : "";
 
             if (saved.getDoctorId() != null && notificationRepository != null) {
                 Notification docNote = new Notification();
@@ -765,7 +775,7 @@ public class AppointmentService {
                 docNote.setHospitalId(saved.getHospitalId());
                 docNote.setTitle("Appointment Cancelled by Patient");
                 docNote.setMessage("Patient " + patientNameStr + " has cancelled appointment #" + apptNumStr + " on " + dateStr + timeStr + ".");
-                docNote.setCreatedAt(now);
+                docNote.setCreatedAt(Instant.now());
                 docNote.setRead(false);
                 notificationRepository.save(docNote);
             }
@@ -781,7 +791,7 @@ public class AppointmentService {
                 hospNote.setTitle("Appointment Cancelled by Patient");
                 hospNote.setMessage("Appointment #" + apptNumStr + " cancelled by patient. Refund status: " + 
                         (saved.getRefundStatus() != null ? saved.getRefundStatus() + " (" + saved.getRefundPercentage() + "% - LKR " + saved.getRefundAmount() + ")" : "Unpaid") + ".");
-                hospNote.setCreatedAt(now);
+                hospNote.setCreatedAt(Instant.now());
                 hospNote.setRead(false);
                 notificationRepository.save(hospNote);
             }
@@ -851,7 +861,7 @@ public class AppointmentService {
             throw new IllegalArgumentException("This appointment is already cancelled.");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = nowInSriLanka();
         boolean isPaid = appt.isPaid() || "PAID".equalsIgnoreCase(appt.getPaymentStatus());
 
         appt.setStatus("CANCELLED");
@@ -990,7 +1000,7 @@ public class AppointmentService {
                 hospNote.setMessage("Patient " + patient.getFirstName() + " " + patient.getLastName() + 
                         " has submitted bank details for appointment #" + (saved.getAppointmentNumber() != null ? saved.getAppointmentNumber() : saved.getId()) + 
                         ". Refund of LKR " + String.format(Locale.US, "%.2f", saved.getRefundAmount()) + " is awaiting transfer.");
-                hospNote.setCreatedAt(LocalDateTime.now());
+                hospNote.setCreatedAt(Instant.now());
                 hospNote.setRead(false);
                 notificationRepository.save(hospNote);
             }
@@ -1147,7 +1157,7 @@ public class AppointmentService {
                 pNote.setMessage("Your refund of LKR " + String.format(Locale.US, "%.2f", saved.getRefundAmount()) + 
                         " for appointment #" + (saved.getAppointmentNumber() != null ? saved.getAppointmentNumber() : saved.getId()) + 
                         " has been completed by " + hospital.getName() + " (Ref: " + finalRef + ").");
-                pNote.setCreatedAt(now);
+                pNote.setCreatedAt(Instant.now());
                 pNote.setRead(false);
                 notificationRepository.save(pNote);
             }
