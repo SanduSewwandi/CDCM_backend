@@ -49,18 +49,22 @@ public class HospitalPatientController {
 
             // Get all doctors in this hospital
             List<Doctor> hospitalDoctors = doctorRepository.findAll().stream()
-                    .filter(d -> d.getHospitals() != null && d.getHospitals().contains(hospitalId))
+                    .filter(d -> d != null && d.getHospitals() != null && d.getHospitals().contains(hospitalId))
                     .collect(Collectors.toList());
 
             List<String> doctorIds = hospitalDoctors.stream()
                     .map(Doctor::getId)
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
-            // Get all appointments for these doctors
+            // Get all appointments for these doctors that belong to this hospital
             List<Appointment> appointments = new ArrayList<>();
             for (String doctorId : doctorIds) {
                 List<Appointment> doctorAppointments = appointmentRepository.findAll().stream()
-                        .filter(a -> doctorId.equals(a.getDoctorId()))
+                        .filter(a -> a != null
+                                && doctorId.equals(a.getDoctorId())
+                                && hospitalId != null
+                                && hospitalId.equals(a.getHospitalId()))
                         .collect(Collectors.toList());
                 appointments.addAll(doctorAppointments);
             }
