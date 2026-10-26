@@ -3,7 +3,9 @@ package com.example.demo.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Document(collection = "notifications")
 public class Notification {
@@ -15,7 +17,7 @@ public class Notification {
     private String hospitalId;
     private String message;
     private boolean read = false;
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Instant createdAt = Instant.now();
     private String scheduleId;
     private String scheduleType;
     private String date;
@@ -41,8 +43,11 @@ public class Notification {
     public boolean isRead() { return read; }
     public void setRead(boolean read) { this.read = read; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = (createdAt != null) ? createdAt.atZone(ZoneId.of("Asia/Colombo")).toInstant() : null;
+    }
 
     public String getScheduleId() { return scheduleId; }
     public void setScheduleId(String scheduleId) { this.scheduleId = scheduleId; }

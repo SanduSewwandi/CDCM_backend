@@ -2,6 +2,8 @@ package com.example.demo.controller;
 
 import com.example.demo.dto.AppointmentCancelRequest;
 import com.example.demo.dto.AppointmentResponseDTO;
+import com.example.demo.dto.BankDetailsRequest;
+import com.example.demo.dto.RefundConfirmRequest;
 import com.example.demo.dto.RefundPreviewDTO;
 import com.example.demo.model.Appointment;
 import com.example.demo.service.AppointmentService;
@@ -136,6 +138,100 @@ public class AppointmentController {
             return ResponseEntity.ok(cancelled);
         } catch (SecurityException se) {
             return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // =========================================================
+    // SUBMIT BANK DETAILS FOR REFUND (Patient)
+    // =========================================================
+    @PostMapping("/{appointmentId}/bank-details")
+    public ResponseEntity<?> submitBankDetails(
+            @PathVariable String appointmentId,
+            @RequestBody BankDetailsRequest request,
+            Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Authentication required"));
+        }
+        try {
+            Appointment updated = appointmentService.submitBankDetails(appointmentId, principal.getName(), request);
+            return ResponseEntity.ok(updated);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // =========================================================
+    // GET PENDING REFUNDS (Hospital)
+    // =========================================================
+    @GetMapping("/hospital/{hospitalId}/pending-refunds")
+    public ResponseEntity<?> getPendingRefunds(
+            @PathVariable String hospitalId,
+            Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Authentication required"));
+        }
+        try {
+            List<AppointmentResponseDTO> pending = appointmentService.getPendingRefundsForHospital(hospitalId, principal.getName());
+            return ResponseEntity.ok(pending);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // =========================================================
+    // GET APPOINTMENT REFUND DETAILS (Hospital)
+    // =========================================================
+    @GetMapping("/{appointmentId}/refund-details")
+    public ResponseEntity<?> getRefundDetails(
+            @PathVariable String appointmentId,
+            Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Authentication required"));
+        }
+        try {
+            AppointmentResponseDTO details = appointmentService.getRefundDetailsForHospital(appointmentId, principal.getName());
+            return ResponseEntity.ok(details);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.status(404).body(Map.of("message", iae.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // =========================================================
+    // CONFIRM REFUND TRANSFER (Hospital)
+    // =========================================================
+    @PutMapping("/{appointmentId}/confirm-refund")
+    public ResponseEntity<?> confirmRefund(
+            @PathVariable String appointmentId,
+            @RequestBody(required = false) RefundConfirmRequest request,
+            Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Authentication required"));
+        }
+        try {
+            String ref = request != null ? request.getTransactionRef() : null;
+            String notes = request != null ? request.getNotes() : null;
+            Appointment updated = appointmentService.confirmRefundTransfer(appointmentId, principal.getName(), ref, notes);
+            return ResponseEntity.ok(updated);
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("message", se.getMessage()));
+        } catch (IllegalStateException ise) {
+            return ResponseEntity.status(409).body(Map.of("message", ise.getMessage()));
         } catch (IllegalArgumentException iae) {
             return ResponseEntity.badRequest().body(Map.of("message", iae.getMessage()));
         } catch (Exception e) {
