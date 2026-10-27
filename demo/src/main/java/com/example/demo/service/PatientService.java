@@ -70,15 +70,15 @@ public class PatientService {
     public Patient loginPatient(String email, String password) {
 
         Optional<Patient> optional = patientRepository.findByEmail(email);
+
         if (optional.isPresent()) {
             Patient patient = optional.get();
-            if (!patient.isVerified()) {
-                throw new RuntimeException("Please verify your email first.");
-            }
+
             if (passwordEncoder.matches(password, patient.getPassword())) {
                 return patient;
             }
         }
+
         return null;
     }
 
