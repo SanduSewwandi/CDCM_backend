@@ -957,4 +957,133 @@ class AuthControllerTest {
                 anyString()
         );
     }
+
+    @Test
+    void changePassword_WithWrongCurrentPassword_ShouldReturn400() {
+
+        Principal principal = () -> "patient@gmail.com";
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("wrongPassword");
+        request.setNewPassword("newPassword123");
+        request.setConfirmPassword("newPassword123");
+
+        doThrow(new RuntimeException("Current password does not match"))
+                .when(patientService)
+                .changePassword(
+                        "patient@gmail.com",
+                        "wrongPassword",
+                        "newPassword123"
+                );
+
+        ResponseEntity<?> response =
+                authController.changePassword(principal, request);
+
+        assertEquals(400, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+
+        assertEquals(
+                Map.of("message", "Current password does not match"),
+                response.getBody()
+        );
+
+        verify(patientService).changePassword(
+                "patient@gmail.com",
+                "wrongPassword",
+                "newPassword123"
+        );
+
+        verify(doctorService, never()).changePassword(
+                anyString(),
+                anyString(),
+                anyString()
+        );
+
+        verify(hospitalService, never()).changePassword(
+                anyString(),
+                anyString(),
+                anyString()
+        );
+    }
+
+    @Test
+    void changePassword_WithPasswordMismatch_ShouldReturn400() {
+
+        Principal principal = () -> "patient@gmail.com";
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("oldPassword123");
+        request.setNewPassword("newPassword123");
+        request.setConfirmPassword("differentPassword123");
+
+        ResponseEntity<?> response =
+                authController.changePassword(principal, request);
+
+        assertEquals(400, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+
+        assertEquals(
+                Map.of(
+                        "message",
+                        "New password and confirmation do not match"
+                ),
+                response.getBody()
+        );
+
+        verify(patientService, never()).changePassword(
+                anyString(),
+                anyString(),
+                anyString()
+        );
+
+        verify(doctorService, never()).changePassword(
+                anyString(),
+                anyString(),
+                anyString()
+        );
+
+        verify(hospitalService, never()).changePassword(
+                anyString(),
+                anyString(),
+                anyString()
+        );
+    }
+
+    @Test
+    void changePassword_WithoutAuthentication_ShouldReturn401() {
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("oldPassword123");
+        request.setNewPassword("newPassword123");
+        request.setConfirmPassword("newPassword123");
+
+        ResponseEntity<?> response =
+                authController.changePassword(null, request);
+
+        assertEquals(401, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+
+        assertEquals(
+                Map.of("message", "Authentication required"),
+                response.getBody()
+        );
+
+        verify(patientService, never()).changePassword(
+                anyString(),
+                anyString(),
+                anyString()
+        );
+
+        verify(doctorService, never()).changePassword(
+                anyString(),
+                anyString(),
+                anyString()
+        );
+
+        verify(hospitalService, never()).changePassword(
+                anyString(),
+                anyString(),
+                anyString()
+        );
+    }
 }
