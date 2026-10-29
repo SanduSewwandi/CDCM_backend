@@ -641,5 +641,299 @@ class AppointmentIntegrationTest {
         );
     }
 
+    @Test
+    void hospitalJwtShouldNotSubmitPatientBankDetails() throws Exception {
+
+        String token = "valid.hospital.token";
+        String appointmentId = "appointment123";
+
+        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.extractEmail(token))
+                .thenReturn("hospital@example.com");
+        when(jwtService.extractRole(token))
+                .thenReturn("HOSPITAL");
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .post("/api/appointments/"
+                                        + appointmentId + "/bank-details")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}")
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).submitBankDetails(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(
+                        com.example.demo.dto.BankDetailsRequest.class
+                )
+        );
+    }
+
+    @Test
+    void hospitalRefundDetailsWithValidJwtShouldReturn200() throws Exception {
+
+        String token = "valid.hospital.token";
+        String appointmentId = "appointment123";
+        String hospitalEmail = "hospital@example.com";
+
+        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.extractEmail(token)).thenReturn(hospitalEmail);
+        when(jwtService.extractRole(token)).thenReturn("HOSPITAL");
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .get("/api/appointments/"
+                                        + appointmentId + "/refund-details")
+                                .header("Authorization", "Bearer " + token)
+                )
+                .andExpect(status().isOk());
+
+        verify(appointmentService)
+                .getRefundDetailsForHospital(
+                        appointmentId,
+                        hospitalEmail
+                );
+    }
+
+    @Test
+    void patientJwtShouldNotAccessHospitalRefundDetails() throws Exception {
+
+        String token = "valid.patient.token";
+        String appointmentId = "appointment123";
+
+        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.extractEmail(token))
+                .thenReturn("patient@example.com");
+        when(jwtService.extractRole(token))
+                .thenReturn("PATIENT");
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .get("/api/appointments/"
+                                        + appointmentId + "/refund-details")
+                                .header("Authorization", "Bearer " + token)
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).getRefundDetailsForHospital(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+    @Test
+    void hospitalRefundDetailsWithoutJwtShouldBeForbidden() throws Exception {
+
+        String appointmentId = "appointment123";
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .get("/api/appointments/"
+                                        + appointmentId + "/refund-details")
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).getRefundDetailsForHospital(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+
+    @Test
+    void hospitalPendingRefundsWithoutJwtShouldBeForbidden() throws Exception {
+
+        String hospitalId = "hospital123";
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .get("/api/appointments/hospital/"
+                                        + hospitalId + "/pending-refunds")
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).getPendingRefundsForHospital(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+    @Test
+    void hospitalRefundConfirmationWithoutJwtShouldBeForbidden() throws Exception {
+
+        String appointmentId = "appointment123";
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .put("/api/appointments/"
+                                        + appointmentId + "/confirm-refund")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "transactionRef": "TXN123456",
+                                        "notes": "Refund confirmed"
+                                    }
+                                    """)
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).confirmRefundTransfer(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.nullable(String.class),
+                org.mockito.ArgumentMatchers.nullable(String.class)
+        );
+    }
+
+    @Test
+    void doctorJwtShouldNotCancelAppointmentAsHospital() throws Exception {
+
+        String token = "valid.doctor.token";
+        String appointmentId = "appointment123";
+
+        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.extractEmail(token))
+                .thenReturn("doctor@example.com");
+        when(jwtService.extractRole(token))
+                .thenReturn("DOCTOR");
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .put("/api/appointments/"
+                                        + appointmentId + "/hospital-cancel")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "reason": "Appointment cancelled"
+                                    }
+                                    """)
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).cancelAppointmentByHospital(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.nullable(String.class)
+        );
+    }
+
+    @Test
+    void hospitalCancellationWithoutJwtShouldBeForbidden() throws Exception {
+
+        String appointmentId = "appointment123";
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .put("/api/appointments/"
+                                        + appointmentId + "/hospital-cancel")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "reason": "Appointment cancelled"
+                                    }
+                                    """)
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).cancelAppointmentByHospital(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.nullable(String.class)
+        );
+    }
+
+    @Test
+    void doctorJwtShouldNotAccessPatientRefundPreview() throws Exception {
+
+        String token = "valid.doctor.token";
+        String appointmentId = "appointment123";
+
+        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.extractEmail(token))
+                .thenReturn("doctor@example.com");
+        when(jwtService.extractRole(token))
+                .thenReturn("DOCTOR");
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .get("/api/appointments/"
+                                        + appointmentId + "/cancel-preview")
+                                .header("Authorization", "Bearer " + token)
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).getCancellationRefundPreview(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+    @Test
+    void hospitalJwtShouldNotAccessPatientRefundPreview() throws Exception {
+
+        String token = "valid.hospital.token";
+        String appointmentId = "appointment123";
+
+        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.extractEmail(token))
+                .thenReturn("hospital@example.com");
+        when(jwtService.extractRole(token))
+                .thenReturn("HOSPITAL");
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders
+                                .get("/api/appointments/"
+                                        + appointmentId + "/cancel-preview")
+                                .header("Authorization", "Bearer " + token)
+                )
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verify(
+                appointmentService,
+                org.mockito.Mockito.never()
+        ).getCancellationRefundPreview(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
 
 }
