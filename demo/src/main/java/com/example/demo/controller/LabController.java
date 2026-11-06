@@ -124,9 +124,14 @@ public class LabController {
         return labTestRepository.findByHospitalId(hospitalId);
     }
 
-    /** get test by patient */
+    /** get test by patient (optionally filtered by hospital) */
     @GetMapping("/patient/{patientId}")
-    public List<LabTest> getTestsByPatient(@PathVariable String patientId) {
+    public List<LabTest> getTestsByPatient(
+            @PathVariable String patientId,
+            @RequestParam(required = false) String hospitalId) {
+        if (hospitalId != null && !hospitalId.trim().isEmpty() && !"null".equalsIgnoreCase(hospitalId)) {
+            return labTestRepository.findByPatientIdAndHospitalId(patientId, hospitalId);
+        }
         return labTestRepository.findByPatientId(patientId);
     }
 
