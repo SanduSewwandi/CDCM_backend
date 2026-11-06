@@ -19,6 +19,9 @@ public interface LabTestRepository extends MongoRepository<LabTest, String> {
     // Get tests by patient
     List<LabTest> findByPatientId(String patientId);
 
+    // Get tests by patient and hospital
+    List<LabTest> findByPatientIdAndHospitalId(String patientId, String hospitalId);
+
     // Search by test type (case-insensitive)
     List<LabTest> findByTestTypeContainingIgnoreCase(String testType);
 }
