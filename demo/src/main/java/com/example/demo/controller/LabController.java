@@ -25,6 +25,7 @@ import com.example.demo.repository.TestCategoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,10 +106,22 @@ public class LabController {
         return savedTest;
     }
 
-    /** get all tests */
+    /** get all tests (optionally filtered by hospital) */
     @GetMapping("/all")
-    public List<LabTest> getAllTests() {
+    public List<LabTest> getAllTests(@RequestParam(required = false) String hospitalId) {
+        if (hospitalId != null && !hospitalId.trim().isEmpty() && !"null".equalsIgnoreCase(hospitalId)) {
+            return labTestRepository.findByHospitalId(hospitalId);
+        }
         return labTestRepository.findAll();
+    }
+
+    /** get tests by hospital */
+    @GetMapping("/hospital/{hospitalId}")
+    public List<LabTest> getTestsByHospital(@PathVariable String hospitalId) {
+        if (hospitalId == null || hospitalId.trim().isEmpty() || "null".equalsIgnoreCase(hospitalId)) {
+            return Collections.emptyList();
+        }
+        return labTestRepository.findByHospitalId(hospitalId);
     }
 
     /** get test by patient */
